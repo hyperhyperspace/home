@@ -1,9 +1,9 @@
 {
-  "name": "@hyper-hyper-space/starter-project-ts",
+  "name": "@hyper-hyper-space/home",
   "version": "0.0.1",
-  "description": "An empty Hyper Hyper Space project that can be used as a starting point for new datatypes, using TypeScript.",
+  "description": "A Home Space can host a person's identity, keys and his collection of spaces synchronized across their devices.",
   "main": "dist/index.js",
-  "repository": "https://github.com/hyperhyperspace/starter-project-ts",
+  "repository": "https://github.com/hyperhyperspace/home",
   "author": "Santiago Bazerque",
   "license": "MIT",
   "private": false,
