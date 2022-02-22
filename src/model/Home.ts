@@ -1,4 +1,4 @@
-import { HashedObject, MutableReference, SpaceEntryPoint } from '@hyper-hyper-space/core';
+import { HashedObject, SpaceEntryPoint } from '@hyper-hyper-space/core';
 
 
 class Home extends HashedObject implements SpaceEntryPoint {
