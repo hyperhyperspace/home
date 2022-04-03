@@ -1,6 +1,6 @@
 {
   "name": "@hyper-hyper-space/home",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A Home Space can host a person's identity, keys and his collection of spaces synchronized across their devices.",
   "main": "dist/index.js",
   "repository": "https://github.com/hyperhyperspace/home",
