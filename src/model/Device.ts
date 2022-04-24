@@ -1,4 +1,4 @@
-import { ClassRegistry, HashedObject, Identity, MutableReference, RSAKeyPair, RSAPublicKey } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, MutableReference, RSAPublicKey } from '@hyper-hyper-space/core';
 
 import { LocalDeviceInfo } from './LocalDeviceInfo';
 
@@ -9,23 +9,28 @@ class Device extends HashedObject {
     name?: MutableReference<string>;
     publicKey?: RSAPublicKey;
 
-    constructor(owner?: Identity, keypair?: RSAKeyPair) {
+    constructor(owner?: Identity, publicKey?: RSAPublicKey, id?: string) {
         super();
 
         if (owner !== undefined) {
             this.setAuthor(owner);
-            this.setRandomId();
+            if (id === undefined) {
+                this.setRandomId();
+            } else {
+                this.setId(id);
+            }
+            
 
             const name = new MutableReference();
             name.typeConstraints = ['string'];
             name.setAuthor(owner);
             this.addDerivedField('name', name);
 
-            if (keypair === undefined) {
-                throw new Error('A device kepair is necessary to create a new device.');
+            if (publicKey === undefined) {
+                throw new Error('A device public key is necessary to create a new device.');
              }
 
-            this.publicKey = keypair.makePublicKey();
+            this.publicKey = publicKey;
         }
     }
     

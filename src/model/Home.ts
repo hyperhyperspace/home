@@ -1,14 +1,14 @@
-import { MutationEvent, MutationObserver, LinkupManager, SyncMode } from '@hyper-hyper-space/core';
+import { MutationEvent, MutationObserver, LinkupManager, SyncMode, MutableArray } from '@hyper-hyper-space/core';
 import { ClassRegistry, Hash, HashedObject, Hashing } from '@hyper-hyper-space/core';
 import { Identity } from '@hyper-hyper-space/core';
-import { MutableSet } from '@hyper-hyper-space/core';
+import { MutableSet, MutableSetEvents } from '@hyper-hyper-space/core';
 import { SpaceEntryPoint } from '@hyper-hyper-space/core';
 import { PeerNode, PeerGroupInfo } from '@hyper-hyper-space/core';
 
 import { MultiMap } from '@hyper-hyper-space/core';
 
 import { Folder } from './Folder';
-import { FolderTree } from './FolderTree';
+import { FolderTree, FolderTreeEvents } from './FolderTree';
 import { Device } from './Device';
 import { LocalDeviceInfo } from './LocalDeviceInfo';
 import { LinkedDevicesPeerSource } from './LinkedDevicesPeerSource';
@@ -35,6 +35,57 @@ class Home extends HashedObject implements SpaceEntryPoint {
     constructor(owner?: Identity) {
         super();
 
+        this._allSpaceLinks = new Map();
+        this._allContainingFolders = new MultiMap();
+
+        this._devicesMutationObserver = (ev: MutationEvent) => {
+            
+            console.log('home -> devices mutation:')
+            console.log(ev)
+
+
+            if (ev.emitter.equals(this.devices)) {
+
+                const device = ev.data as Device;
+
+                if (ev.action === MutableSetEvents.Add) {
+                    if (this.isWatchingForChanges()) {
+                        device.loadAndWatchForChanges();
+                    }
+                    this._node?.sync(device, SyncMode.full, this._devicePeers);
+                } else if (ev.action === MutableSetEvents.Delete) {
+                    device.dontWatchForChanges();
+                    this._node?.stopSync(device, this._devicePeers?.id);
+                }
+            }
+
+            return false;
+        };
+
+        this._desktopMutationObserver = (ev: MutationEvent) => {
+
+            console.log('home -> desktop mutation:')
+            console.log(ev)
+
+            if (ev.emitter.equals(this.desktop)) {
+
+                const item = ev.data as FolderItem;
+
+                if (ev.action === FolderTreeEvents.AddItem) {
+                    if (this.isWatchingForChanges()) {
+                        item.loadAndWatchForChanges();
+                    }
+                    this._node?.sync(item, SyncMode.full, this._devicePeers);
+                } else if (ev.action === FolderTreeEvents.RemoveItem) {
+                    item.dontWatchForChanges();
+                    this._node?.stopSync(item, this._devicePeers?.id);
+                }
+
+            }
+
+            return false;
+        };
+
         if (owner !== undefined) {
             this.setAuthor(owner);
             this.setId(this.getDerivedId());
@@ -45,35 +96,16 @@ class Home extends HashedObject implements SpaceEntryPoint {
             devices.setAuthor(owner);
 
             this.addDerivedField('devices', devices);
+
+            this.init();
         }
 
-        this._allSpaceLinks = new Map();
-        this._allContainingFolders = new MultiMap();
-
-        this._devicesMutationObserver = {
-            callback: (ev: MutationEvent) => {
-                const device = ev.data as Device;
-                
-                if (ev.action === 'add') {
-                    device.name?.loadAndWatchForChanges();
-                } else if (ev.action === 'delete') {
-                    device.name?.watchForChanges(false);
-                }
-
-            }
-        };
-
-        this._desktopMutationObserver = {
-            callback: (_ev: MutationEvent) => {
-
-            }
-        }
-
+        
         
     }
 
     getDesktop(): Folder {
-        return this.desktop as Folder;
+        return this.desktop?.root as Folder;
     }
 
     getClassName(): string {
@@ -81,7 +113,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
     }
     
     init(): void {
-
+        this.devices?.addMutationObserver(this._devicesMutationObserver);
+        this.desktop?.addMutationObserver(this._desktopMutationObserver);
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -89,6 +122,12 @@ class Home extends HashedObject implements SpaceEntryPoint {
         return true;
     }
     
+    async loadHomeDevice(): Promise<void> {
+        if (this._localDevice === undefined) {
+            this._localDevice = await this.findLocalDevice();
+        }
+    }
+
     async startSync(): Promise<void> {
 
         let resources = this.getResources();
@@ -97,17 +136,14 @@ class Home extends HashedObject implements SpaceEntryPoint {
             throw new Error('Cannot start home sync: resources not configured.');
         }
 
-        if (resources.config?.id === undefined) {
-            throw new Error('Cannot start home sync: local identity has not been defined.');
-        }
-
         if (resources.store === undefined) {
             throw new Error('Cannot start home sync: a local store has not been configured.')
         }
-
+        
         await this.loadAndWatchForChanges();
+        //await this.desktop?.root?.loadAndWatchForChanges();
 
-        this._localDevice = await this.findLocalDevice();
+        await this.loadHomeDevice();
 
         if (this._localDevice === undefined) {
             throw new Error('Cannot start home sync: a local device has not been defined.');
@@ -119,12 +155,44 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         this._node = new PeerNode(resources);
 
+        const devices = this.devices?.values()
 
-        this._node?.sync(this, SyncMode.recursive, this._devicePeers);
+        if (devices !== undefined) {
+            for (const device of devices) {
+                this._node?.sync(device, SyncMode.full, this._devicePeers);
+            }
+        }
+
+        const folderItems = this.desktop?.allItems();
+
+        if (folderItems !== undefined) {
+            for (const item of folderItems) {
+                this._node?.sync(item, SyncMode.full, this._devicePeers);
+            }
+        }
+
+        this._node?.sync(this, SyncMode.full, this._devicePeers);
     }
 
     async stopSync(): Promise<void> {
         this._node?.stopSync(this, this._devicePeers?.id);
+
+        const devices = this.devices?.values()
+
+        if (devices !== undefined) {
+            for (const device of devices) {
+                this._node?.stopSync(device, this._devicePeers?.id);
+            }
+        }
+
+        const folderItems = this.desktop?.allItems();
+
+        if (folderItems !== undefined) {
+            for (const item of folderItems) {
+                this._node?.stopSync(item, SyncMode.full);
+            }
+        }
+
         this._node = undefined;
     }
 
@@ -138,8 +206,11 @@ class Home extends HashedObject implements SpaceEntryPoint {
             throw new Error('Trying to add a new device to home, but devices set has not been loaded.');
         }
 
-        this.devices.add(device);
-        await this.devices.saveQueuedOps();
+        await this.getStore().save(device);
+
+        await this.devices.add(device);
+        
+        await this.getStore().save(this.devices);
         
         if (local) {
             const localDeviceInfo = new LocalDeviceInfo(device.hash(), this.getAuthor());
@@ -163,32 +234,80 @@ class Home extends HashedObject implements SpaceEntryPoint {
         return undefined;
     }
 
+    toggleWatchForChanges(enabled: boolean): boolean {
+
+        const before = super.toggleWatchForChanges(enabled);
+
+        for (const device of (this.devices as MutableSet<Device>).values()) {
+            device.toggleWatchForChanges(enabled);
+
+            if (enabled) {
+                device.loadAllChanges();
+            }
+        }
+
+        for (const item of (this.desktop?.root?.items as MutableArray<FolderItem>).contents()) {
+            if (item instanceof Folder) {
+                item.toggleWatchForChanges(enabled);
+
+                if (enabled) {
+                    item.loadAllChanges();
+                }
+            }
+        }
+
+        return before;
+
+    }
+
     // load / store
 
-    async loadAndWatchForChanges(loadBatchSize=128): Promise<void> {
+   /* async loadAndWatchForChanges(loadBatchSize=128): Promise<void> {
 
-        this.desktop?.addMutationObserver(this._desktopMutationObserver);
-        this.devices?.addMutationObserver(this._devicesMutationObserver);
+        this.watchForChanges(true);
         
-        await this.desktop?.loadAndWatchForChanges(loadBatchSize);
-        await this.devices?.loadAndWatchForChanges(loadBatchSize);
+        await this.loadAllChanges(loadBatchSize);
 
     }
 
     watchForChanges(auto: boolean): boolean {
 
-        this.desktop?.addMutationObserver(this._desktopMutationObserver);
-        this.devices?.addMutationObserver(this._devicesMutationObserver);
+        const devices = this.devices?.values()
+
+        if (devices !== undefined) {
+            for (const device of devices) {
+                device.watchForChanges(auto);
+                if (auto) {
+                    device.loadAllChanges();
+                }
+            }
+        }
+
         
-        return this.desktop?.watchForChanges(auto) ||
-               this.devices?.watchForChanges(auto) || false;
+        const items = this.desktop?.allItems();
+
+        if (items !== undefined) {
+            for (const item of items) {
+                item.watchForChanges(auto);
+                if (auto) {
+                    item.loadAllChanges();
+                }
+            }
+        }
+
+        this._watchingForChanges = auto;
+        const desktopWatchForChanges = this.desktop?.watchForChanges(auto);
+        const devicesWatchForChanges = this.devices?.watchForChanges(auto);
+        
+        return desktopWatchForChanges ||
+               devicesWatchForChanges || false;
 
     }
 
-    async loadAllChanges() {
-        this.desktop?.loadAllChanges();
-        this.devices?.loadAllChanges();
-    }
+    async loadAllChanges(loadBatchSize=128) {
+        await this.desktop?.loadAllChanges(loadBatchSize);
+        await this.devices?.loadAllChanges(loadBatchSize);
+    }*/
 
 }
 

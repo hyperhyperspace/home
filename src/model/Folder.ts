@@ -1,4 +1,5 @@
-import { ArrayMutationEvent, ClassRegistry, Hash, HashedObject, Identity, location, MutableArray, MutableReference, MutationEvent, MutationObserver, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, Hash, HashedObject, Identity, location, MutableArray, MutableReference, MutationEvent, MutationObserver, Types } from '@hyper-hyper-space/core';
+import { MutableContentEvents } from '@hyper-hyper-space/core/dist/data/model/mutable/MutableObject';
 
 import { SpaceLink } from './SpaceLink';
 
@@ -16,10 +17,52 @@ class Folder extends HashedObject {
     name?: MutableReference<string>;
     items?: MutableArray<FolderItem>
 
-    _folderContentsObserver: MutationObserver;
+    _contentsObserver: MutationObserver;
+
+    _watchForItemNameChanges: boolean;
 
     constructor(owner?: Identity, id?: string) {
         super();
+
+        this._contentsObserver = (ev: MutationEvent) => {
+
+            //console.log('folder contents observer:')
+            //console.log(ev)
+
+            if (ev.emitter === this.items) {
+                if (ev.action === MutableContentEvents.AddObject) {
+                    if (this._watchForItemNameChanges) {
+                        (ev.data.name as MutableReference<string>)?.loadAndWatchForChanges();
+                    }
+                    this._mutationEventSource?.emit({emitter: this, action: 'add-to-folder', data: ev.data} as AddToFolderEvent)
+                } else if (ev.action === MutableContentEvents.RemoveObject) {
+                    if (this._watchForItemNameChanges) {
+                        (ev.data.name as MutableReference<string>)?.dontWatchForChanges();
+                    }
+                    this._mutationEventSource?.emit({emitter: this, action: 'remove-from-folder', data: ev.data} as RemoveFromFolderEvent)
+                }
+            } else if (ev.emitter === this.name) {
+                if (ev.action === 'update') {
+                    this._mutationEventSource?.emit({emitter: this, action:'rename', data: ev.data});
+                    return true;
+                }   
+            }/* else {
+
+                if (ev.action === 'rename') {
+                    const idx = this.items?.indexOfByHash(ev.emitter?.getLastHash());
+
+                    if (idx !== undefined && idx >= 0) {
+                        
+                        
+                    }
+    
+                }
+            }*/
+
+            return false;
+        };
+
+        this._watchForItemNameChanges = false;
 
         if (owner !== undefined) {
             if (id === undefined) {
@@ -33,27 +76,16 @@ class Folder extends HashedObject {
             name.setAuthor(owner);
             this.addDerivedField('name', name);
             
-            const contents = new MutableArray<HashedObject>(false);
-            contents.typeConstraints = [Folder.className, SpaceLink.className];
-            contents.setAuthor(owner);
-            this.addDerivedField('contents', contents);
+            const items = new MutableArray<HashedObject>(false);
+            items.typeConstraints = [Folder.className, SpaceLink.className];
+            items.setAuthor(owner);
+            this.addDerivedField('items', items);
 
             this.setAuthor(owner);
+
+            this.init();
         }
 
-        this._folderContentsObserver = { 
-
-            callback: (ev: MutationEvent) => {
-                if (ev.emitter === this.items) {
-                    const arrayEv = ev as ArrayMutationEvent<FolderItem>;
-                    if (ev.action === 'insert') {
-                        this._mutationEventSource?.emit({emitter: this, action: 'add-to-folder', data: arrayEv.data} as AddToFolderEvent)
-                    } else if (ev.action === 'delete') {
-                        this._mutationEventSource?.emit({emitter: this, action: 'remove-from-folder', data: arrayEv.data} as RemoveFromFolderEvent)
-                    }
-                }
-            }
-        };
     }
 
     getClassName(): string {
@@ -61,7 +93,7 @@ class Folder extends HashedObject {
     }
 
     init(): void {
-        
+        this.addMutationObserver(this._contentsObserver);
     }
 
     async validate(references: Map<string, HashedObject>): Promise<boolean> {
@@ -87,7 +119,7 @@ class Folder extends HashedObject {
             return false;
         }
 
-        if (!this.checkDerivedField('contents')) {
+        if (!this.checkDerivedField('items')) {
             return false;
         }
 
@@ -109,6 +141,33 @@ class Folder extends HashedObject {
 
         return true;
 
+    }
+
+    async loadItemNamesAndWatchForChanges() {
+        
+        this.cascadeMutableContentEvents();
+
+        this._watchForItemNameChanges = true;
+
+        for (const item of (this.items as MutableArray<FolderItem>).contents()) {
+            await item.name?.loadAndWatchForChanges();
+        }
+    }
+
+    dontWatchForItemNameChanges() {
+
+        this.dontCascadeMutableContentEvents();
+
+        this._watchForItemNameChanges = false;
+
+        for (const item of (this.items as MutableArray<FolderItem>).contents()) {
+            item.name?.dontWatchForChanges();
+        }
+
+    }
+
+    isWatchingForItemNameChanges() {
+        return this._watchForItemNameChanges;
     }
 
 }

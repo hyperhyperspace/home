@@ -5,7 +5,7 @@ class SpaceLink extends HashedObject {
     static className = 'hhs-home/v0/SpaceLink';
 
     spaceEntryHash?: Hash;
-    localName?: MutableReference<string>;
+    name?: MutableReference<string>;
 
     constructor(owner?: Identity, spaceEntryHash?: Hash) {
         super();
@@ -24,7 +24,7 @@ class SpaceLink extends HashedObject {
             const localName = new MutableReference();
             localName.typeConstraints = ['string'];
             localName.setAuthor(owner);
-            this.addDerivedField('localName', localName);
+            this.addDerivedField('name', localName);
         }
 
     }
@@ -49,19 +49,19 @@ class SpaceLink extends HashedObject {
             return false;
         }
 
-        if (!this.checkDerivedField('localName')) {
+        if (!this.checkDerivedField('name')) {
             return false;
         }
 
-        if (!(this.localName instanceof MutableReference)) {
+        if (!(this.name instanceof MutableReference)) {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.localName?.typeConstraints, ['string'])) {
+        if (!Types.checkTypeConstraint(this.name?.typeConstraints, ['string'])) {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.localName.getAuthor()))) {
+        if (!(this.getAuthor()?.equals(this.name.getAuthor()))) {
             return false;
         }
 

@@ -54,7 +54,6 @@ class LinkedDevicesPeerSource implements PeerSource {
 
             if (idPeer.info !== undefined && this.devices.hasByHash(idPeer.info) &&
                 idPeer.identityHash === this.ownerHash) {
-                
                 return idPeer.asPeer();
             } else {
                 return undefined;

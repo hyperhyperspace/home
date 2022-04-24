@@ -3,10 +3,17 @@ import { ClassRegistry, Hash, HashedObject, Identity, location, MultiMap, Mutabl
 import { Folder, FolderEvent, FolderItem } from './Folder';
 import { SpaceLink } from './SpaceLink';
 
-type AddItemEvent     = { emitter: FolderTree, action: 'add-item-to-tree', path?: location<HashedObject>[], data: FolderItem };
-type RemoveItemEvent  = { emitter: FolderTree, action: 'remove-item-from-tree', path?: location<HashedObject>[], data: FolderItem };
-type AddSpaceEvent    = { emitter: FolderTree, action: 'add-space-to-tree', path?: location<HashedObject>[], data: Hash };
-type RemoveSpaceEvent = { emitter: FolderTree, action: 'remove-space-from-tree', path?: location<HashedObject>[], data: Hash };
+enum FolderTreeEvents {
+    AddItem     = 'add-item-to-tree',
+    RemoveItem  = 'remove-item-from-tree',
+    AddSpace    = 'add-space-to-tree',
+    RemoveSpace = 'remove-space-from-tree'
+}
+
+type AddItemEvent     = { emitter: FolderTree, action: FolderTreeEvents.AddItem, path?: location<HashedObject>[], data: FolderItem };
+type RemoveItemEvent  = { emitter: FolderTree, action: FolderTreeEvents.RemoveItem, path?: location<HashedObject>[], data: FolderItem };
+type AddSpaceEvent    = { emitter: FolderTree, action: FolderTreeEvents.AddSpace, path?: location<HashedObject>[], data: Hash };
+type RemoveSpaceEvent = { emitter: FolderTree, action: FolderTreeEvents.RemoveSpace, path?: location<HashedObject>[], data: Hash };
 
 type Event = AddItemEvent | RemoveItemEvent | AddSpaceEvent | RemoveSpaceEvent;
 
@@ -26,10 +33,40 @@ class FolderTree extends HashedObject {
 
     _folderContentsObserver: MutationObserver;
 
-    _watchingForChanges = false;
-
     constructor(owner?: Identity, id?: string) {
         super();
+
+        this._allFolderItems     = new Map();
+
+        this._currentFolderItems = new Set();
+        this._currentSpaces      = new Set();
+
+        this._containingFolders  = new MultiMap();
+        this._spaceLinksPerSpace = new MultiMap();
+
+        this._folderContentsObserver = (ev: MutationEvent) => {
+
+            //console.log('folder tree observer:')
+            //console.log(ev)
+
+            if (ev.emitter instanceof Folder) {
+
+                const folderHash = ev.emitter.hash();
+                const folderEv = ev as FolderEvent;
+
+                if (this._currentFolderItems.has(folderHash)) {
+                    if (folderEv.action === 'add-to-folder') {
+                        this.onAddingToFolder(ev.emitter, ev.data);
+                        return true;
+                    } else if (folderEv.action === 'remove-from-folder') {
+                        this.onRemovingFromFolder(ev.emitter, ev.data);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        };
 
         if (owner !== undefined) {
 
@@ -42,32 +79,8 @@ class FolderTree extends HashedObject {
             }
 
             this.root = new Folder(owner, this.getDerivedFieldId('root'));
-        }
 
-        this._allFolderItems     = new Map();
-
-        this._currentFolderItems = new Set();
-        this._currentSpaces      = new Set();
-
-        this._containingFolders  = new MultiMap();
-        this._spaceLinksPerSpace = new MultiMap();
-
-        this._folderContentsObserver = {
-            callback: (ev: MutationEvent) => {
-                if (ev.emitter instanceof Folder) {
-
-                    const folderHash = ev.emitter.hash();
-                    const folderEv = ev as FolderEvent;
-
-                    if (this._currentFolderItems.has(folderHash)) {
-                        if (folderEv.action === 'add-to-folder') {
-                            this.onAddingToFolder(ev.emitter, ev.data);
-                        } else if (folderEv.action === 'remove-from-folder') {
-                            this.onRemovingFromFolder(ev.emitter, ev.data);
-                        }
-                    }
-                }
-            }
+            this.init();
         }
     }
 
@@ -93,7 +106,7 @@ class FolderTree extends HashedObject {
 
             this._allFolderItems.set(itemHash, item);
 
-            if (item.watchForChanges(this._watchingForChanges)) {
+            if (item.toggleWatchForChanges(this.isWatchingForChanges())) {
                 item.loadAllChanges();
             }
             
@@ -110,7 +123,7 @@ class FolderTree extends HashedObject {
             this._currentFolderItems.add(itemHash);
 
             if (isNew) {
-                this._mutationEventSource?.emit({emitter: this, action: 'add-item-to-tree', data: item} as AddItemEvent)
+                this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddItem, data: item} as AddItemEvent)
             }
 
             if (item instanceof Folder) {
@@ -128,7 +141,7 @@ class FolderTree extends HashedObject {
                 this._currentSpaces.add(item.spaceEntryHash as Hash);
 
                 if (isNew) {
-                    this._mutationEventSource?.emit({emitter: this, action: 'add-space-to-tree', data: item.spaceEntryHash} as AddSpaceEvent)
+                    this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddSpace, data: item.spaceEntryHash} as AddSpaceEvent)
                 }
             }
 
@@ -147,7 +160,7 @@ class FolderTree extends HashedObject {
             if (!this._containingFolders.hasKey(itemHash)) {
 
                 this._currentFolderItems.delete(itemHash);
-                this._mutationEventSource?.emit({emitter: this, action: 'remove-item-from-tree', data: item} as RemoveItemEvent);
+                this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.RemoveItem, data: item} as RemoveItemEvent);
 
                 if (item instanceof SpaceLink) {
 
@@ -156,7 +169,7 @@ class FolderTree extends HashedObject {
                     this._spaceLinksPerSpace.delete(spaceEntryHash, itemHash);
                     if (!this._spaceLinksPerSpace.hasKey(spaceEntryHash)) {
                         this._currentSpaces.delete(spaceEntryHash);
-                        this._mutationEventSource?.emit({emitter: this, action: 'remove-space-from-tree', data: item.spaceEntryHash} as RemoveSpaceEvent)
+                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.RemoveSpace, data: item.spaceEntryHash} as RemoveSpaceEvent)
                     }
     
                 } else if (item instanceof Folder) {
@@ -174,18 +187,24 @@ class FolderTree extends HashedObject {
         }
     }
 
-    watchForChanges(auto: boolean): boolean {
+    toggleWatchForChanges(enabled: boolean): boolean {
 
-        this._watchingForChanges = auto;
+        super.toggleWatchForChanges(enabled);
 
         for (const folder of this._allFolderItems.values()) {
-            folder.watchForChanges(auto);
-            if (auto) {
+            folder.toggleWatchForChanges(enabled);
+            if (enabled) {
                 folder.loadAllChanges();
             }
         }
 
-        return auto;
+        return enabled;
+    }
+
+    async loadAllChanges(loadBatchSize=128) {
+        for (const folder of this._allFolderItems.values()) {
+            await folder.loadAllChanges(loadBatchSize);
+        }
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -209,8 +228,11 @@ class FolderTree extends HashedObject {
         return true;
     }
 
+    allItems(): IterableIterator<FolderItem> {
+        return this._allFolderItems.values();
+    }
 }
 
 ClassRegistry.register(FolderTree.className, FolderTree);
 
-export { FolderTree, Event as FolderTreeEvent, AddItemEvent as AddItemToTreeEvent, RemoveItemEvent as RemoveItemFromTreeEvent, AddSpaceEvent as AddSpaceToTreeEvent, RemoveSpaceEvent as RemoveSpaceFromTreeEvent };
+export { FolderTree, Event as FolderTreeEvent, FolderTreeEvents, AddItemEvent as AddItemToTreeEvent, RemoveItemEvent as RemoveItemFromTreeEvent, AddSpaceEvent as AddSpaceToTreeEvent, RemoveSpaceEvent as RemoveSpaceFromTreeEvent };
