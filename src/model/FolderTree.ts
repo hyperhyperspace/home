@@ -1,4 +1,5 @@
 import { ClassRegistry, Hash, HashedObject, Identity, location, MultiMap, MutableArray, MutationEvent, MutationObserver } from '@hyper-hyper-space/core';
+import { Lock } from '@hyper-hyper-space/core/dist/util/concurrency';
 
 import { Folder, FolderEvent, FolderItem } from './Folder';
 import { SpaceLink } from './SpaceLink';
@@ -17,34 +18,46 @@ type RemoveSpaceEvent = { emitter: FolderTree, action: FolderTreeEvents.RemoveSp
 
 type Event = AddItemEvent | RemoveItemEvent | AddSpaceEvent | RemoveSpaceEvent;
 
+
+type TreeChange = { what: 'add', folder: Folder, item: FolderItem, loadBatchSize?: number } | { what: 'remove', folder: Folder, itemHash: Hash } | { what: 'load-root', loadBatchSize?: number};
+
 class FolderTree extends HashedObject {
 
     static className = 'hhs-home/v0/FolderTree';
 
     root?: Folder;
 
-    _allFolderItems     : Map<Hash, FolderItem>;
+    //_allFolderItems     : Map<Hash, FolderItem>;
 
-    _currentFolderItems : Set<Hash>;
+    _currentFolderItems : Map<Hash, FolderItem>;
     _currentSpaces      : Set<Hash>;
 
     _containingFolders  : MultiMap<Hash, Hash>;
     _spaceLinksPerSpace : MultiMap<Hash, Hash>;
 
-    _folderContentsObserver: MutationObserver;
+    _treeObserver: MutationObserver;
+
+    _changeTreeLock: Lock;
+    _pendingChanges: Array<TreeChange>;
+
+    _loadingFolders: Set<Hash>;
+    _loadAllLock: Lock;
 
     constructor(owner?: Identity, id?: string) {
         super();
 
-        this._allFolderItems     = new Map();
+        //this._allFolderItems     = new Map();
 
-        this._currentFolderItems = new Set();
+        this._currentFolderItems = new Map();
         this._currentSpaces      = new Set();
 
         this._containingFolders  = new MultiMap();
         this._spaceLinksPerSpace = new MultiMap();
 
-        this._folderContentsObserver = (ev: MutationEvent) => {
+        this._loadingFolders     = new Set();
+        this._loadAllLock        = new Lock();
+
+        this._treeObserver = (ev: MutationEvent) => {
 
             //console.log('folder tree observer:')
             //console.log(ev)
@@ -54,19 +67,24 @@ class FolderTree extends HashedObject {
                 const folderHash = ev.emitter.hash();
                 const folderEv = ev as FolderEvent;
 
-                if (this._currentFolderItems.has(folderHash)) {
+                if (this._currentFolderItems.has(folderHash) && !this._loadingFolders.has(folderHash)) {
                     if (folderEv.action === 'add-to-folder') {
-                        this.onAddingToFolder(ev.emitter, ev.data);
+                        this.doChange({what: 'add', folder: ev.emitter, item: ev.data});
                         return true;
                     } else if (folderEv.action === 'remove-from-folder') {
-                        this.onRemovingFromFolder(ev.emitter, ev.data);
+                        this.doChange({what: 'remove', folder: ev.emitter, itemHash: ev.data.getLastHash()});
                         return true;
+                    } else if (folderEv.action === 'rename') {
+                        return false;
                     }
                 }
             }
 
-            return false;
+            return true;
         };
+
+        this._changeTreeLock = new Lock();
+        this._pendingChanges = [];
 
         if (owner !== undefined) {
 
@@ -88,63 +106,106 @@ class FolderTree extends HashedObject {
 
         const root = this.root as Folder;
 
-        this._currentFolderItems.add(root.hash());
-        this._allFolderItems.set(root.hash(), root);
+        this._currentFolderItems.set(root.hash(), root);
+        //this._allFolderItems.set(root.hash(), root);
         
-        root.addMutationObserver(this._folderContentsObserver);
+        root.addMutationObserver(this._treeObserver);
     }
 
     getClassName(): string {
         return FolderTree.className;
     }
 
-    private onAddingToFolder(folder: Folder, item: FolderItem) {
+    private async doChange(change: TreeChange) {
+
+        this._pendingChanges.push(change);
+
+        if (this._changeTreeLock.acquire()) {
+            try {
+
+                while (this._pendingChanges.length > 0) {
+                    const next = this._pendingChanges.shift() as TreeChange;
+
+                    if (next.what === 'add') {
+                        await this.onAddingToFolder(next.folder, next.item, next.loadBatchSize);
+                    } else if (next.what === 'remove') {
+                        this.onRemovingFromFolder(next.folder, next.itemHash);
+                    } else if (next.what === 'load-root') {
+                        this.loadRoot();
+                    }
+                }
+
+            } finally {
+                this._changeTreeLock.release();
+            }
+        }
+    }
+
+    private async loadRoot() {
+
+        const rootHash = this.root?.hash() as Hash;
+        this._loadingFolders.add(rootHash);
+        try {
+            await this.root?.loadAllChanges();
+        } finally {
+            this._loadingFolders.delete(rootHash);
+        }
+
+        for (const nestedItem of (this.root?.items as MutableArray<FolderItem>).contents()) {
+            await this.doChange({what: 'add', folder: this.root as Folder, item: nestedItem});
+            //await this.onAddingToFolder(item, nestedItem);
+        }
+
+    }
+
+    private async onAddingToFolder(folder: Folder, item: FolderItem, loadBatchSize?: number) {
         const folderHash = folder.getLastHash();
         const itemHash = item.getLastHash();
-
-        if (!this._allFolderItems.has(itemHash)) {
-
-            this._allFolderItems.set(itemHash, item);
-
-            if (item.toggleWatchForChanges(this.isWatchingForChanges())) {
-                item.loadAllChanges();
-            }
-            
-        } else {
-            item = this._allFolderItems.get(itemHash) as FolderItem;
-        }
 
         if (this._currentFolderItems.has(folderHash)) {
 
             this._containingFolders.add(itemHash, folderHash);
 
-            const isNew = !this._currentFolderItems.has(itemHash);
+            if (!this._currentFolderItems.has(itemHash)) {
 
-            this._currentFolderItems.add(itemHash);
+                this._currentFolderItems.set(itemHash, item);
 
-            if (isNew) {
+                item.toggleWatchForChanges(this.isWatchingForChanges())
+
+                if (item.isWatchingForChanges()) {
+                    this._loadingFolders.add(itemHash);
+                    try {
+                        await item.loadAllChanges(loadBatchSize);
+                    } finally {
+                        this._loadingFolders.delete(itemHash);
+                    } 
+                }
+
+                // No race: if the treeObserver was already called, and missed because itemHash is in _loadingFolders,
+                // then the object has already been modified and the change will be reflected on nestedItems below.
+
                 this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddItem, data: item} as AddItemEvent)
-            }
+            
+                if (item instanceof Folder) {
 
-            if (item instanceof Folder) {
-                
-                for (const nestedItem of (item.items as MutableArray<FolderItem>).contents()) {
-                    this.onAddingToFolder(item, nestedItem);
+                    item.addMutationObserver(this._treeObserver);
+
+                    for (const nestedItem of (item.items as MutableArray<FolderItem>).contents()) {
+                        await this.doChange({what: 'add', folder: item, item: nestedItem});
+                        //await this.onAddingToFolder(item, nestedItem);
+                    }
+                } else if (item instanceof SpaceLink) {
+
+                    const isNewSpace = this._currentSpaces.has(item.spaceEntryHash as Hash);
+
+                    this._currentSpaces.add(item.spaceEntryHash as Hash);
+
+                    if (isNewSpace) {
+                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddSpace, data: item.spaceEntryHash} as AddSpaceEvent)
+                    }
                 }
-
-                item.addMutationObserver(this._folderContentsObserver);
-                 
-            } else if (item instanceof SpaceLink) {
-
-                const isNew = this._currentSpaces.has(item.spaceEntryHash as Hash);
-
-                this._currentSpaces.add(item.spaceEntryHash as Hash);
-
-                if (isNew) {
-                    this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddSpace, data: item.spaceEntryHash} as AddSpaceEvent)
-                }
-            }
-
+            
+            }            
         }
     }
 
@@ -154,10 +215,10 @@ class FolderTree extends HashedObject {
 
         if (this._currentFolderItems.has(itemHash)) {
 
-            const item = this._allFolderItems.get(itemHash);
-
             this._containingFolders.delete(itemHash, folderHash);
             if (!this._containingFolders.hasKey(itemHash)) {
+
+                const item = this._currentFolderItems.get(itemHash);
 
                 this._currentFolderItems.delete(itemHash);
                 this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.RemoveItem, data: item} as RemoveItemEvent);
@@ -174,7 +235,7 @@ class FolderTree extends HashedObject {
     
                 } else if (item instanceof Folder) {
 
-                    item.removeMutationObserver(this._folderContentsObserver);
+                    item.removeMutationObserver(this._treeObserver);
 
                     for (const nestedItem of (folder.items as MutableArray<FolderItem>)?.contents()) {
 
@@ -189,23 +250,84 @@ class FolderTree extends HashedObject {
 
     toggleWatchForChanges(enabled: boolean): boolean {
 
-        super.toggleWatchForChanges(enabled);
+        
+        const before = this._boundToStore;
+
+        this._boundToStore = enabled;
+        
+        for (const folder of this._currentFolderItems.values()) {
+            folder.toggleWatchForChanges(enabled);
+        }
+
+        return before;
+
+        /*const before = super.toggleWatchForChanges(enabled);
 
         for (const folder of this._allFolderItems.values()) {
             folder.toggleWatchForChanges(enabled);
-            if (enabled) {
+            if (enabled && !before) {
                 folder.loadAllChanges();
             }
         }
 
         return enabled;
+        */
+    }
+
+    async loadAndWatchForChanges(loadBatchSize=128): Promise<void> {
+        this.watchForChanges();
+        await this.loadAllChanges(loadBatchSize);
     }
 
     async loadAllChanges(loadBatchSize=128) {
-        for (const folder of this._allFolderItems.values()) {
-            await folder.loadAllChanges(loadBatchSize);
-        }
+
+        await this.doChange({what:'load-root', loadBatchSize: loadBatchSize});
     }
+
+    /*private async loadAllChangesToFolder(folder: Folder, loadBatchSize: number) {
+        const folderHash = folder.getLastHash();
+
+        const oldContents = new Set(folder.items?.contentHashes() || []);
+        
+        this._loadingFolders.add(folderHash);
+
+        try {
+            await folder.loadAllChanges(loadBatchSize);
+        } finally {
+            this._loadingFolders.delete(folderHash);
+        } 
+
+        
+
+        // No race: if the treeObserver was already called, and missed becose itemHash is in _loadingFolders,
+        // then the object has already been modified and the change will be reflected on newContents below.
+
+        const newContents = new Map(folder.items?.contents().map((item:FolderItem)=>[item.getLastHash(), item]));
+
+        const toReload = new Array<Folder>();
+
+        for (const [itemHash, item] of newContents.entries()) {
+            if (!oldContents.has(itemHash)) {
+                await this.doChange({what: 'add', folder: folder, item: item});
+
+                if (item instanceof Folder) {
+                    toReload.push(item);
+                }
+
+            }
+        }
+
+        for (const itemHash of oldContents.values()) {
+            if (!newContents.has(itemHash)) {
+                await this.doChange({what:'remove', folder: folder, itemHash: itemHash});
+            }
+        }
+
+        for (const childFolder of toReload) {
+            await this.loadAllChangesToFolder(childFolder, loadBatchSize);
+        }
+        
+    }*/
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
 
@@ -228,8 +350,13 @@ class FolderTree extends HashedObject {
         return true;
     }
 
-    allItems(): IterableIterator<FolderItem> {
-        return this._allFolderItems.values();
+    hasCurrentItemByHash(hash: Hash) {
+        return this._currentFolderItems.has(hash); 
+    }
+
+    currentItems(): IterableIterator<FolderItem> {
+
+        return this._currentFolderItems.values();
     }
 }
 

@@ -7,8 +7,9 @@ type FolderItem = Folder | SpaceLink;
 
 type AddToFolderEvent = {emitter: Folder, action: 'add-to-folder', path?: location<HashedObject>[], data: FolderItem };
 type RemoveFromFolderEvent = {emitter: Folder, action: 'remove-from-folder', path?: location<HashedObject>[], data: Hash};
+type RenameFolderEvent = {emitter: Folder, action: 'rename', path?: location<HashedObject>[], data: string};
 
-type FolderEvent = AddToFolderEvent | RemoveFromFolderEvent;
+type FolderEvent = AddToFolderEvent | RemoveFromFolderEvent | RenameFolderEvent;
 
 class Folder extends HashedObject {
 
@@ -43,7 +44,7 @@ class Folder extends HashedObject {
                 }
             } else if (ev.emitter === this.name) {
                 if (ev.action === 'update') {
-                    this._mutationEventSource?.emit({emitter: this, action:'rename', data: ev.data});
+                    this._mutationEventSource?.emit({emitter: this, action:'rename', data: ev.data} as RenameFolderEvent);
                     return true;
                 }   
             }/* else {
@@ -170,8 +171,17 @@ class Folder extends HashedObject {
         return this._watchForItemNameChanges;
     }
 
+    ownEventsFilter(): (ev: MutationEvent) => boolean {
+        const isEventForFolder = (ev: MutationEvent) => 
+        (ev.emitter.getLastHash() === this.getLastHash() || 
+        ( this.items !== undefined && 
+          this.items.indexOfByHash(ev.emitter.getLastHash()) >= 0));
+
+        return isEventForFolder;
+    }
+
 }
 
 ClassRegistry.register(Folder.className, Folder);
 
-export { Folder, FolderItem, FolderEvent, AddToFolderEvent, RemoveFromFolderEvent };
+export { Folder, FolderItem, FolderEvent, AddToFolderEvent, RemoveFromFolderEvent, RenameFolderEvent };

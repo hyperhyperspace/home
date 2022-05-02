@@ -9,6 +9,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
     static className = 'hhs-home/v0/LinkDeviceOffer';
 
     reply?: MutableReference<string>;
+    replyReceivingStatus?: MutableReference<'error'|'success'>;
 
     newDevice?: MutableReference<Device>;
 
@@ -34,6 +35,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
             this.setId(id);
             this.addDerivedField('reply', new MutableReference<string>());
+            this.addDerivedField('replyReceivingStatus', new MutableReference<'error'|'success'>());
             this.addDerivedField('newDevice', new MutableReference<Device>());
 
             this._secret = keygen.derive(secretHex, id, 25000);
@@ -111,6 +113,10 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         return undefined;
     }
 
+    setReplyReceivedStatus(status: 'success'|'error') {
+        this.replyReceivingStatus?.setValue(status);
+    }
+
     getClassName(): string {
         return LinkDeviceOffer.className;
     }
@@ -122,6 +128,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
         return this.hasId() && 
                this.reply instanceof MutableReference && this.checkDerivedField('reply') &&
+               this.replyReceivingStatus instanceof MutableReference && this.checkDerivedField('replyReceivingStatus') &&
                this.newDevice instanceof MutableReference && this.checkDerivedField('newDevice');
     }
 
@@ -163,6 +170,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         }
 
         this._node?.sync(this.reply as MutableReference<string>, SyncMode.single, this._peerGroup);
+        this._node?.sync(this.replyReceivingStatus as MutableReference<'success'|'error'>, SyncMode.single, this._peerGroup);
         this._node?.sync(this.newDevice as MutableReference<Device>, SyncMode.single, this._peerGroup);
     }
     
@@ -174,6 +182,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         }
 
         this._node?.stopSync(this.reply as MutableReference<string>, this._peerGroup?.id);
+        this._node?.stopSync(this.replyReceivingStatus as MutableReference<'success'|'errro'>, this._peerGroup?.id);
         this._node?.stopSync(this.newDevice as MutableReference<Device>, this._peerGroup?.id);
         this._node = undefined;
     }
