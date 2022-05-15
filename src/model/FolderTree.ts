@@ -13,8 +13,8 @@ enum FolderTreeEvents {
 
 type AddItemEvent     = { emitter: FolderTree, action: FolderTreeEvents.AddItem, path?: location<HashedObject>[], data: FolderItem };
 type RemoveItemEvent  = { emitter: FolderTree, action: FolderTreeEvents.RemoveItem, path?: location<HashedObject>[], data: FolderItem };
-type AddSpaceEvent    = { emitter: FolderTree, action: FolderTreeEvents.AddSpace, path?: location<HashedObject>[], data: Hash };
-type RemoveSpaceEvent = { emitter: FolderTree, action: FolderTreeEvents.RemoveSpace, path?: location<HashedObject>[], data: Hash };
+type AddSpaceEvent    = { emitter: FolderTree, action: FolderTreeEvents.AddSpace, path?: location<HashedObject>[], data: HashedObject };
+type RemoveSpaceEvent = { emitter: FolderTree, action: FolderTreeEvents.RemoveSpace, path?: location<HashedObject>[], data: HashedObject };
 
 type Event = AddItemEvent | RemoveItemEvent | AddSpaceEvent | RemoveSpaceEvent;
 
@@ -131,7 +131,7 @@ class FolderTree extends HashedObject {
                     } else if (next.what === 'remove') {
                         this.onRemovingFromFolder(next.folder, next.itemHash);
                     } else if (next.what === 'load-root') {
-                        this.loadRoot();
+                        await this.loadRoot();
                     }
                 }
 
@@ -196,12 +196,15 @@ class FolderTree extends HashedObject {
                     }
                 } else if (item instanceof SpaceLink) {
 
-                    const isNewSpace = this._currentSpaces.has(item.spaceEntryHash as Hash);
+                    const entryPointHash = item.spaceEntryPoint?.getLastHash() as Hash;
 
-                    this._currentSpaces.add(item.spaceEntryHash as Hash);
+                    const isNewSpace = !this._currentSpaces.has(entryPointHash);
+                    
+                    this._spaceLinksPerSpace.add(entryPointHash, itemHash);
 
                     if (isNewSpace) {
-                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddSpace, data: item.spaceEntryHash} as AddSpaceEvent)
+                        this._currentSpaces.add(entryPointHash);
+                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.AddSpace, data: item.spaceEntryPoint} as AddSpaceEvent)
                     }
                 }
             
@@ -225,12 +228,12 @@ class FolderTree extends HashedObject {
 
                 if (item instanceof SpaceLink) {
 
-                    const spaceEntryHash = item.spaceEntryHash as Hash;
+                    const spaceEntryHash = item.spaceEntryPoint?.getLastHash() as Hash;
 
                     this._spaceLinksPerSpace.delete(spaceEntryHash, itemHash);
                     if (!this._spaceLinksPerSpace.hasKey(spaceEntryHash)) {
                         this._currentSpaces.delete(spaceEntryHash);
-                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.RemoveSpace, data: item.spaceEntryHash} as RemoveSpaceEvent)
+                        this._mutationEventSource?.emit({emitter: this, action: FolderTreeEvents.RemoveSpace, data: item.spaceEntryPoint} as RemoveSpaceEvent)
                     }
     
                 } else if (item instanceof Folder) {
@@ -280,6 +283,8 @@ class FolderTree extends HashedObject {
     }
 
     async loadAllChanges(loadBatchSize=128) {
+
+        console.log('load all changes for folder tree!')
 
         await this.doChange({what:'load-root', loadBatchSize: loadBatchSize});
     }
@@ -357,6 +362,54 @@ class FolderTree extends HashedObject {
     currentItems(): IterableIterator<FolderItem> {
 
         return this._currentFolderItems.values();
+    }
+
+    hasCurrentSpaceByHash(hash: Hash) {
+        return this._currentSpaces.has(hash);
+    }
+
+    currentSpaces(): IterableIterator<Hash> {
+        return this._currentSpaces.values();
+    }
+
+    currentLinksForSpace(spaceEntryHash: Hash): Array<SpaceLink> {
+
+        return Array.from(this._spaceLinksPerSpace.get(spaceEntryHash)).map(
+                        (linkHash: Hash) => this._currentFolderItems.get(linkHash) as SpaceLink)
+
+    }
+
+    getPathsForItemHash(itemHash: Hash) : Set<Array<FolderItem>> {
+
+        const paths = new Set<Array<FolderItem>>();
+
+        for (const pathHash of this.getPathHashesForItemHash(itemHash).values()) {
+            paths.add(pathHash.map((hash: Hash) => this._currentFolderItems.get(hash) as FolderItem));
+        }
+
+        return paths;
+    }
+
+    getPathHashesForItemHash(itemHash: Hash): Set<Array<Hash>> {
+        const pathHashes = new Set<Array<Hash>>();
+
+        const rootHash = this.root?.getLastHash();
+
+        if (itemHash === rootHash) {
+            return new Set([[rootHash]]);
+        } else {
+            for (const parentHash of this._containingFolders.get(itemHash)) {
+                for (const parentPath of this.getPathHashesForItemHash(parentHash)) {
+                    if (parentPath.indexOf(itemHash) < 0) {
+                        parentPath.push(itemHash);
+                        pathHashes.add(parentPath);
+                    }
+                }
+            }
+    
+            return pathHashes;    
+        }
+
     }
 }
 

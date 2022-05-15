@@ -104,6 +104,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
             this.setId(this.getDerivedId());
 
             this.desktop = new FolderTree(owner, this.getDerivedFieldId('desktop'));
+
+            this.desktop.root?.name?.setValue('Desktop');
             
             const devices = new MutableSet<Device>();
             devices.setAuthor(owner);

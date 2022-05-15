@@ -1,25 +1,25 @@
-import { ClassRegistry, Hash, HashedObject, Identity, MutableReference, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, MutableReference, Types } from '@hyper-hyper-space/core';
 
 class SpaceLink extends HashedObject {
 
     static className = 'hhs-home/v0/SpaceLink';
 
-    spaceEntryHash?: Hash;
+    spaceEntryPoint?: HashedObject;
     name?: MutableReference<string>;
 
-    constructor(owner?: Identity, spaceEntryHash?: Hash) {
+    constructor(owner?: Identity, spaceEntryPoint?: HashedObject) {
         super();
 
         if (owner !== undefined) {
 
-            if (spaceEntryHash === undefined) {
-                throw new Error('A spaceEntryHash is necessary to create a SpaceLink instance');
+            if (!(spaceEntryPoint instanceof HashedObject)) {
+                throw new Error('A spaceEntryPoint is necessary to create a SpaceLink instance');
             }
 
             this.setAuthor(owner);
             this.setRandomId();
 
-            this.spaceEntryHash = spaceEntryHash;
+            this.spaceEntryPoint = spaceEntryPoint;
 
             const localName = new MutableReference();
             localName.typeConstraints = ['string'];
@@ -45,7 +45,7 @@ class SpaceLink extends HashedObject {
             return false;
         }
 
-        if (typeof this.spaceEntryHash !== 'string') {
+        if (!(this.spaceEntryPoint instanceof HashedObject)) {
             return false;
         }
 
