@@ -31,14 +31,14 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
             //TODO: add something related to the current date to the salt value
 
-            const id = keygen.derive(secretHex, rmd.rmd160hex(Strings.hexToBase64(secretHex)), 10000);
+            const id = keygen.derive(secretHex, rmd.rmd160hex(Strings.hexToBase64(secretHex)), 25000);
 
             this.setId(id);
             this.addDerivedField('reply', new MutableReference<string>());
             this.addDerivedField('replyReceivingStatus', new MutableReference<'error'|'success'>());
             this.addDerivedField('newDevice', new MutableReference<Device>());
 
-            this._secret = keygen.derive(secretHex, id, 25000);
+            this._secret = keygen.derive(secretHex, id, 10000);
 
             this._discoveryConstant = new HashedLiteral(Hashing.forValue(id));
         }
