@@ -8,5 +8,3 @@ A Home Space enables you to:
 
 This repo contains the datatypes that implement home spaces on Hyper Hyper Space.
 
-This is WIP.
-
