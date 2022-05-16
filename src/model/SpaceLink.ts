@@ -1,4 +1,7 @@
-import { ClassRegistry, HashedObject, Identity, MutableReference, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, location, MutableReference, MutationEvent, MutationObserver, Types } from '@hyper-hyper-space/core';
+
+
+type RenameSpaceLinkEvent = {emitter: SpaceLink, action: 'rename', path?: location<HashedObject>[], data: string};
 
 class SpaceLink extends HashedObject {
 
@@ -6,6 +9,8 @@ class SpaceLink extends HashedObject {
 
     spaceEntryPoint?: HashedObject;
     name?: MutableReference<string>;
+
+    _nameObserver: MutationObserver;
 
     constructor(owner?: Identity, spaceEntryPoint?: HashedObject) {
         super();
@@ -27,6 +32,18 @@ class SpaceLink extends HashedObject {
             this.addDerivedField('name', localName);
         }
 
+        this._nameObserver = (ev: MutationEvent) => {
+
+            if (ev.emitter === this.name) {
+                if (ev.action === 'update') {
+                    this._mutationEventSource?.emit({emitter: this, action:'rename', data: ev.data} as RenameSpaceLinkEvent);
+                    return true;
+                }   
+            }
+
+            return false;
+        };
+
     }
 
     getClassName(): string {
@@ -34,7 +51,7 @@ class SpaceLink extends HashedObject {
     }
 
     init(): void {
-        
+        this.addMutationObserver(this._nameObserver);
     }
 
     async validate(references: Map<string, HashedObject>): Promise<boolean> {
