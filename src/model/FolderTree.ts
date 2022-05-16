@@ -64,7 +64,7 @@ class FolderTree extends HashedObject {
 
             if (ev.emitter instanceof Folder) {
 
-                const folderHash = ev.emitter.hash();
+                const folderHash = ev.emitter.getLastHash();
                 const folderEv = ev as FolderEvent;
 
                 if (this._currentFolderItems.has(folderHash) && !this._loadingFolders.has(folderHash)) {
