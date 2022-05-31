@@ -1,6 +1,6 @@
 
 import { ChaCha20Impl, ClassRegistry, HashedLiteral, HashedObject, Hashing, HMACImpl, Identity, KeyGenImpl, MutableReference, ObjectDiscoveryPeerSource, PeerGroupInfo, PeerNode, RMDImpl, RNGImpl, RSAKeyPair, RSAPublicKey, SecretBasedPeerSource, SpaceEntryPoint, Strings, SyncMode } from '@hyper-hyper-space/core';
-import { Device } from '..';
+import { Device } from './Device';
 
 type LinkDeviceReply = { info: any, publicKey: string, privateKey: string, deviceId: string, devicePublicKey: string };
 

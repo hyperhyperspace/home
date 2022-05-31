@@ -1,10 +1,10 @@
 
 
 export * from './model/Home';
-export * from './model/Folder';
-export * from './model/SpaceLink'
-export * from './model/FolderTree';
-export * from './model/Device';
-export * from './model/LocalDeviceInfo';
-export * from './model/LinkDeviceOffer';
-export * from './model/LinkedDevicesPeerSource';
+export * from './model/folders/Folder';
+export * from './model/folders/SpaceLink'
+export * from './model/folders/FolderTree';
+export * from './model/devices/Device';
+export * from './model/devices/LocalDeviceInfo';
+export * from './model/devices/LinkDeviceOffer';
+export * from './model/devices/LinkedDevicesPeerSource';

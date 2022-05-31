@@ -7,12 +7,14 @@ import { PeerNode, PeerGroupInfo } from '@hyper-hyper-space/core';
 
 import { MultiMap } from '@hyper-hyper-space/core';
 
-import { Folder } from './Folder';
-import { FolderTree, FolderTreeEvents } from './FolderTree';
-import { Device } from './Device';
-import { LocalDeviceInfo } from './LocalDeviceInfo';
-import { LinkedDevicesPeerSource } from './LinkedDevicesPeerSource';
-import { SpaceLink } from './SpaceLink';
+import { Folder } from './folders/Folder';
+import { FolderTree, FolderTreeEvents } from './folders/FolderTree';
+import { SpaceLink } from './folders/SpaceLink';
+
+import { Device } from './devices/Device';
+import { LocalDeviceInfo } from './devices/LocalDeviceInfo';
+import { LinkedDevicesPeerSource } from './devices/LinkedDevicesPeerSource';
+
 
 type FolderItem = Folder | SpaceLink;
 
