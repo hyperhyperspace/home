@@ -15,6 +15,8 @@ import { Device } from './devices/Device';
 import { LocalDeviceInfo } from './devices/LocalDeviceInfo';
 import { LinkedDevicesPeerSource } from './devices/LinkedDevicesPeerSource';
 
+import { Profile } from './social/Profile';
+
 
 type FolderItem = Folder | SpaceLink;
 
@@ -24,6 +26,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
     desktop?: FolderTree;
     devices?: MutableSet<Device>
+
+    profile?: Profile;
 
     _allSpaceLinks: Map<Hash, FolderItem>;
     _allContainingFolders: MultiMap<Hash, Hash>;
@@ -111,8 +115,11 @@ class Home extends HashedObject implements SpaceEntryPoint {
             
             const devices = new MutableSet<Device>();
             devices.setAuthor(owner);
+            devices.typeConstraints = [Device.className];
 
             this.addDerivedField('devices', devices);
+
+            this.profile = new Profile(owner, this.getDerivedFieldId('profile'));
 
             this.init();
         }
@@ -136,6 +143,54 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
         
+        if (this.getAuthor() === undefined) {
+            return false;
+        }
+
+        if (!(this.desktop instanceof FolderTree)) {
+            return false;
+        }
+
+        if (!this.getAuthor()?.equals(this.desktop?.getAuthor())) {
+            return false;
+        }
+
+        if (!this.checkDerivedField('desktop')) {
+            return false;
+        }
+
+        if (!(this.devices instanceof MutableSet)) {
+            return false;
+        }
+
+        if (!this.getAuthor()?.equals(this.devices?.getAuthor())) {
+            return false;
+        }
+
+        if (!Array.isArray(this.devices.typeConstraints)) {
+            return false;
+        }
+
+        if (this.devices.typeConstraints.length !== 1) {
+            return false;
+        }
+
+        if (this.devices.typeConstraints[0] !== Device.className) {
+            return false;
+        }
+
+        if (!(this.profile instanceof Profile)) {
+            return false;
+        }
+
+        if (!this.getAuthor()?.equals(this.profile?.getAuthor())) {
+            return false;
+        }
+
+        if (!this.checkDerivedField('profile')) {
+            return false;
+        }
+
         return true;
     }
     
