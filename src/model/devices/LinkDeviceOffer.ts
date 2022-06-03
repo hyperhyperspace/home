@@ -1,5 +1,5 @@
 
-import { ChaCha20Impl, ClassRegistry, HashedLiteral, HashedObject, Hashing, HMACImpl, Identity, KeyGenImpl, MutableReference, ObjectDiscoveryPeerSource, PeerGroupInfo, PeerNode, RMDImpl, RNGImpl, RSAKeyPair, RSAPublicKey, SecretBasedPeerSource, SpaceEntryPoint, Strings, SyncMode } from '@hyper-hyper-space/core';
+import { ChaCha20Impl, ClassRegistry, HashedLiteral, HashedObject, Hashing, HMACImpl, Identity, KeyGenImpl, LinkupAddress, MutableReference, ObjectDiscoveryPeerSource, PeerGroupInfo, PeerNode, RMDImpl, RNGImpl, RSAKeyPair, RSAPublicKey, SecretBasedPeerSource, SpaceEntryPoint, Strings, SyncMode } from '@hyper-hyper-space/core';
 import { Device } from './Device';
 
 type LinkDeviceReply = { info: any, publicKey: string, privateKey: string, deviceId: string, devicePublicKey: string };
@@ -152,7 +152,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
         const endpointParser = SecretBasedPeerSource.makeSecureEndpointParser(resources.getEndointParserForDiscovery(), this._secret);
 
-        const discoveryPeerSource = new ObjectDiscoveryPeerSource(resources.mesh, this._discoveryConstant as HashedLiteral, resources.config.linkupServers, localPeer.endpoint, endpointParser);
+        const discoveryPeerSource = new ObjectDiscoveryPeerSource(resources.mesh, this._discoveryConstant as HashedLiteral, resources.config.linkupServers, LinkupAddress.fromURL(localPeer.endpoint, localPeer.identity), endpointParser);
 
         //const peerSource = new SecretBasedPeerSource(discoveryPeerSource, this._secret);
 
