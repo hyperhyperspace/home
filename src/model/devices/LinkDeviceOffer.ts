@@ -1,5 +1,5 @@
 
-import { ChaCha20Impl, ClassRegistry, HashedLiteral, HashedObject, Hashing, HMACImpl, Identity, KeyGenImpl, LinkupAddress, MutableReference, ObjectDiscoveryPeerSource, PeerGroupInfo, PeerNode, RMDImpl, RNGImpl, RSAKeyPair, RSAPublicKey, SecretBasedPeerSource, SpaceEntryPoint, Strings, SyncMode } from '@hyper-hyper-space/core';
+import { ChaCha20Impl, ClassRegistry, HashedLiteral, HashedObject, Hashing, HMACImpl, Identity, KeyGenImpl, LinkupAddress, MutableReference, ObjectDiscoveryPeerSource, PeerGroupInfo, MeshNode, RMDImpl, RNGImpl, RSAKeyPair, RSAPublicKey, SecretBasedPeerSource, SpaceEntryPoint, Strings, SyncMode } from '@hyper-hyper-space/core';
 import { Device } from './Device';
 
 type LinkDeviceReply = { info: any, publicKey: string, privateKey: string, deviceId: string, devicePublicKey: string };
@@ -15,7 +15,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
     _secret?: string;
 
-    _node?: PeerNode;
+    _node?: MeshNode;
     _peerGroup?: PeerGroupInfo;
     _broadcasting = false;
 
@@ -162,7 +162,7 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
             peerSource: discoveryPeerSource
         };
 
-        this._node = new PeerNode(resources);
+        this._node = new MeshNode(resources);
         this._broadcasting = broadcast;
 
         if (broadcast) {

@@ -3,7 +3,7 @@ import { ClassRegistry, Hash, HashedObject, Hashing } from '@hyper-hyper-space/c
 import { Identity } from '@hyper-hyper-space/core';
 import { MutableSet, MutableSetEvents } from '@hyper-hyper-space/core';
 import { SpaceEntryPoint } from '@hyper-hyper-space/core';
-import { PeerNode, PeerGroupInfo } from '@hyper-hyper-space/core';
+import { MeshNode, PeerGroupInfo } from '@hyper-hyper-space/core';
 
 import { MultiMap } from '@hyper-hyper-space/core';
 
@@ -35,7 +35,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
     _devicesMutationObserver: MutationObserver;
 
     _devicePeers?: PeerGroupInfo;
-    _node?: PeerNode;
+    _node?: MeshNode;
     _localDevice?: Device;
 
     constructor(owner?: Identity) {
@@ -225,7 +225,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         this._devicePeers = {id: 'home-devices-for-' + this.getAuthor()?.hash(), localPeer: peerSource.getPeerForDevice(this._localDevice), peerSource: peerSource };
 
-        const node = new PeerNode(resources);
+        const node = new MeshNode(resources);
 
         const devices = this.devices?.values()
 
@@ -248,6 +248,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
                     this._node?.sync(item, SyncMode.full, this._devicePeers);
                 }
             }
+
+            node.sync(this.profile as Profile, SyncMode.full, this._devicePeers);
         }
 
         this._node?.sync(this.devices as MutableSet<Device>, SyncMode.single, this._devicePeers);
