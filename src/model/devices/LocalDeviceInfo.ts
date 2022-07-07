@@ -19,7 +19,7 @@ class LocalDeviceInfo extends HashedObject {
 
             this.setAuthor(owner);
 
-            const content = new MutableReference();
+            const content = new MutableReference({writer: owner});
             content.typeConstraints = [HashedLiteral.className];
             content.setAuthor(owner);
             this.addDerivedField('content', content);
@@ -55,6 +55,10 @@ class LocalDeviceInfo extends HashedObject {
         }
 
         if (!(this.getAuthor()?.equals(this.content?.getAuthor()))) {
+            return false;
+        }
+
+        if (!(this.getAuthor()?.equals(this.content.writer))) {
             return false;
         }
 

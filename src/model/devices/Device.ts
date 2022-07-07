@@ -1,4 +1,4 @@
-import { ClassRegistry, HashedObject, Identity, MutableReference, RSAPublicKey } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, MutableReference, RSAPublicKey, Types } from '@hyper-hyper-space/core';
 
 import { LocalDeviceInfo } from './LocalDeviceInfo';
 
@@ -21,7 +21,7 @@ class Device extends HashedObject {
             }
             
 
-            const name = new MutableReference();
+            const name = new MutableReference({writer: owner});
             name.typeConstraints = ['string'];
             name.setAuthor(owner);
             this.addDerivedField('name', name);
@@ -48,6 +48,35 @@ class Device extends HashedObject {
 
     async validate(references: Map<string, HashedObject>): Promise<boolean> {
         references;
+
+        if (this.getAuthor() === undefined) {
+            return false;
+        }
+
+        if (!(this.name instanceof MutableReference)) {
+            return false;
+        }
+
+        if (!Types.checkTypeConstraint(this.name.typeConstraints, ['string'])) {
+            return false;
+        }
+
+        if (!(this.getAuthor()?.equals(this.name.getAuthor()))) {
+            return false;
+        }
+
+        if (!(this.getAuthor()?.equals(this.name.writer))) {
+            return false;
+        }
+
+        if (!this.checkDerivedField('name')) {
+            return false;
+        }
+        
+        if (!(this.publicKey instanceof RSAPublicKey)) {
+            return false;
+        }
+
 
         return true;
     }

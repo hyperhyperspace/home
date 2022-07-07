@@ -16,6 +16,7 @@ import { LocalDeviceInfo } from './devices/LocalDeviceInfo';
 import { LinkedDevicesPeerSource } from './devices/LinkedDevicesPeerSource';
 
 import { Profile } from './social/Profile';
+import { Contacts } from '..';
 
 
 type FolderItem = Folder | SpaceLink;
@@ -28,6 +29,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
     devices?: MutableSet<Device>
 
     profile?: Profile;
+    contacts?: Contacts;
 
     _allSpaceLinks: Map<Hash, FolderItem>;
     _allContainingFolders: MultiMap<Hash, Hash>;
@@ -113,13 +115,15 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
             this.desktop.root?.name?.setValue('Desktop');
             
-            const devices = new MutableSet<Device>();
+            const devices = new MutableSet<Device>({writer: owner});
             devices.setAuthor(owner);
             devices.typeConstraints = [Device.className];
 
             this.addDerivedField('devices', devices);
 
-            this.profile = new Profile(owner, this.getDerivedFieldId('profile'));
+            this.profile = new Profile(owner);
+
+            this.contacts = new Contacts(owner, this.getDerivedFieldId('contacts'));
 
             this.init();
         }
@@ -147,6 +151,10 @@ class Home extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
+        if (this.getId() !== this.getDerivedId()) {
+            return false;
+        }
+
         if (!(this.desktop instanceof FolderTree)) {
             return false;
         }
@@ -167,6 +175,10 @@ class Home extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
+        if (!(this.getAuthor()?.equals(this.devices.writer))) {
+            return false;
+        }
+
         if (!Array.isArray(this.devices.typeConstraints)) {
             return false;
         }
@@ -184,10 +196,6 @@ class Home extends HashedObject implements SpaceEntryPoint {
         }
 
         if (!this.getAuthor()?.equals(this.profile?.getAuthor())) {
-            return false;
-        }
-
-        if (!this.checkDerivedField('profile')) {
             return false;
         }
 
@@ -250,9 +258,26 @@ class Home extends HashedObject implements SpaceEntryPoint {
             }
 
             node.sync(this.profile as Profile, SyncMode.full, this._devicePeers);
+
+            this.contacts?.profileIsPublic?.addMutationObserver(() => {
+                const profile = this.profile as Profile;
+                
+                if (this.contacts?.profileIsPublic?._value) {
+                    if (!profile.syncIsEnabled()) {
+                        profile.startSync({owner: true});
+                    }
+                } else {
+                    profile.stopSync();
+                }
+            });
+
+            if (this.contacts?.profileIsPublic) {
+                (this.profile as Profile).startSync({owner: true});
+            }
         }
 
         this._node?.sync(this.devices as MutableSet<Device>, SyncMode.single, this._devicePeers);
+        
         if (devices !== undefined) {
             for (const device of devices) {
                 this._node?.sync(device, SyncMode.full, this._devicePeers);

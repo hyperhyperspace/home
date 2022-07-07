@@ -26,9 +26,8 @@ class SpaceLink extends HashedObject {
 
             this.spaceEntryPoint = spaceEntryPoint;
 
-            const localName = new MutableReference();
+            const localName = new MutableReference({writer: owner});
             localName.typeConstraints = ['string'];
-            localName.setAuthor(owner);
             this.addDerivedField('name', localName);
         }
 
@@ -74,11 +73,15 @@ class SpaceLink extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.name?.typeConstraints, ['string'])) {
+        if (!Types.checkTypeConstraint(this.name.typeConstraints, ['string'])) {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.name.getAuthor()))) {
+        if (!(this.getAuthor()?.equals(this.name.writer))) {
+            return false;
+        }
+
+        if (this.name.getAuthor() !== undefined) {
             return false;
         }
 

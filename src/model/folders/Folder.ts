@@ -72,14 +72,12 @@ class Folder extends HashedObject {
                 this.setId(id);
             }
             
-            const name = new MutableReference();
+            const name = new MutableReference({writer: owner});
             name.typeConstraints = ['string'];
-            name.setAuthor(owner);
             this.addDerivedField('name', name);
             
-            const items = new MutableArray<HashedObject>(false);
+            const items = new MutableArray<HashedObject>({writer: owner, duplicates: false});
             items.typeConstraints = [Folder.className, SpaceLink.className];
-            items.setAuthor(owner);
             this.addDerivedField('items', items);
 
             this.setAuthor(owner);
@@ -112,11 +110,15 @@ class Folder extends HashedObject {
             return false;
         }
 
+        if (this.name.getAuthor() !== undefined) {
+            return false;
+        }
+
         if (!Types.checkTypeConstraint(this.name?.typeConstraints, ['string'])) {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.name.getAuthor()))) {
+        if (!(this.getAuthor()?.equals(this.name.writer))) {
             return false;
         }
 
@@ -128,15 +130,19 @@ class Folder extends HashedObject {
             return false;
         }
 
+        if (this.items.getAuthor() !== undefined) {
+            return false;
+        }
+
         if (this.items.duplicates) {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.items?.typeConstraints, [Folder.className, SpaceLink.className])) {
+        if (!Types.checkTypeConstraint(this.items.typeConstraints, [Folder.className, SpaceLink.className])) {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.items?.getAuthor()))) {
+        if (!(this.getAuthor()?.equals(this.items.writer))) {
             return false;
         }
 
