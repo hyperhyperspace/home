@@ -1,4 +1,4 @@
-import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationEvents, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, SpaceEntryPoint, SyncMode } from '@hyper-hyper-space/core';
+import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, Resources, SpaceEntryPoint, SyncMode } from '@hyper-hyper-space/core';
 import { MutableContentEvents } from '@hyper-hyper-space/core/dist/data/model/mutable/MutableObject';
 import { Conversation } from './Conversation';
 import { ConversationSet } from './ConversationSet';
@@ -50,7 +50,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         return ChatSpace.className;
     }
 
-    async validate(references: Map<string, HashedObject>): Promise<boolean> {
+    async validate(_references: Map<string, HashedObject>): Promise<boolean> {
         
         if (this.getAuthor() === undefined) {
             return false;
@@ -64,11 +64,11 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
     async startSync(ownSync?:{localPeer: PeerInfo, peerSource: PeerSource}): Promise<void> {
 
         if (!this._synchronizing) {
-            this._node = new MeshNode(this.getResources());
+            this._node = new MeshNode(this.getResources() as Resources);
 
             if (ownSync !== undefined) {
                 const pg: PeerGroupInfo = {
-                    id: Hashing.forString('chat-space-for-' + this.getAuthor().hash()),
+                    id: Hashing.forString('chat-space-for-' + (this.getAuthor() as Identity).hash()),
                     localPeer: ownSync.localPeer,
                     peerSource: ownSync.peerSource
                 };
@@ -76,11 +76,13 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
                 this._node.sync(this.conversations as ConversationSet, SyncMode.single, pg);
             }
     
-            await this.conversations.loadAndWatchForChanges();
+            const conversations = this.conversations as ConversationSet;
+
+            await conversations.loadAndWatchForChanges();
     
-            this.conversations.addMutationObserver(this._conversationsObserver);
+            conversations.addMutationObserver(this._conversationsObserver);
     
-            for (const conversation of this.conversations.values()) {
+            for (const conversation of conversations.values()) {
                 conversation.startSync(ownSync);
             }
 
@@ -94,19 +96,21 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         if (this._synchronizing) {
             if (ownSync !== undefined) {
                 const pg: PeerGroupInfo = {
-                    id: Hashing.forString('chat-space-for-' + this.getAuthor().hash()),
+                    id: Hashing.forString('chat-space-for-' + (this.getAuthor() as Identity).hash()),
                     localPeer: ownSync.localPeer,
                     peerSource: ownSync.peerSource
                 };
     
-                this._node.stopSync(this.conversations as ConversationSet, pg.id);
+                (this._node as MeshNode).stopSync(this.conversations as ConversationSet, pg.id);
             }
 
-            this.conversations.dontWatchForChanges();
+            const conversations = this.conversations as ConversationSet;
 
-            this.conversations.removeMutationObserver(this._conversationsObserver);
+            conversations.dontWatchForChanges();
 
-            for (const conversation of this.conversations.values()) {
+            conversations.removeMutationObserver(this._conversationsObserver);
+
+            for (const conversation of conversations.values()) {
                 conversation.stopSync(ownSync);
             }
 

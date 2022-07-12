@@ -31,7 +31,7 @@ class ReceivedAck extends MutableReference<HashedSet<MutationOp>> {
                     return false;
                 }
 
-                if (!this.messages.shouldAcceptMutationOp(elmt, opReferences)) {
+                if (!this.messages?.shouldAcceptMutationOp(elmt, opReferences)) {
                     return false;
                 }
             }
@@ -40,7 +40,7 @@ class ReceivedAck extends MutableReference<HashedSet<MutationOp>> {
         return true;
     }
 
-    async validate(references: Map<string, HashedObject>) {
+    async validate(references: Map<string, HashedObject>): Promise<boolean> {
 
         if (!(await super.validate(references))) {
             return false;

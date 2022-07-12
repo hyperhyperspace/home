@@ -16,7 +16,7 @@ class Message extends HashedObject{
         
     }
 
-    async validate(references: Map<string, HashedObject>): Promise<boolean> {
+    async validate(_references: Map<string, HashedObject>): Promise<boolean> {
         if (typeof this.timestamp !== 'number') {
             return false;
         }

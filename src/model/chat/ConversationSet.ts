@@ -1,4 +1,4 @@
-import { ClassRegistry, Hash, HashedObject, Hashing, Identity, MutableSet, MutableSetAddOp, MutableSetDeleteOp, MutationOp } from '@hyper-hyper-space/core';
+import { ClassRegistry, Hash, HashedObject, Hashing, Identity, MutableSet, MutableSetAddOp, MutationOp } from '@hyper-hyper-space/core';
 import { Conversation } from './Conversation';
 
 // A ConversationSet is a set that only accepts conversations where the localIdentity === its owner
@@ -15,7 +15,7 @@ class ConversationSet extends MutableSet<Conversation> {
         }
     }
 
-    async validate(references: Map<string, HashedObject>) {
+    async validate(references: Map<string, HashedObject>): Promise<boolean> {
 
         if (!(await super.validate(references))) {
             return false;
@@ -44,6 +44,8 @@ class ConversationSet extends MutableSet<Conversation> {
                 return false;
             }
         }
+
+        return true;
     }
 
     getClassName() {

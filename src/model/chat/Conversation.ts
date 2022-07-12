@@ -1,4 +1,4 @@
-import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, HashedSet, Hash, MutableReference, MutationObserver, MutationOp, MutableSet } from '@hyper-hyper-space/core';
+import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, HashedSet, Hash, MutableReference, MutationObserver, MutationOp, MutableSet, Resources } from '@hyper-hyper-space/core';
 import { Message } from './Message';
 import { MessageInbox } from './MessageInbox';
 
@@ -42,13 +42,14 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     _syncMutationObserver: MutationObserver = (ev: Event<HashedObject>) => {
 
-        if (ev.emitter === this.outgoing.messages || ev.emitter === this.outgoing.receivedAck) {
+
+        if (ev.emitter === this.outgoing?.messages || ev.emitter === this.outgoing?.receivedAck) {
 
             this.checkOutgoingState();
 
         }
 
-        if (ev.emitter === this.incoming.messages || ev.emitter === this.incoming.receivedAck) {
+        if (ev.emitter === this.incoming?.messages || ev.emitter === this.incoming?.receivedAck) {
 
             this.checkIncomingState();
 
@@ -73,7 +74,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     }
 
-    async validate(references: Map<string, HashedObject>): Promise<boolean> {
+    async validate(_references: Map<string, HashedObject>): Promise<boolean> {
 
         const local  = this.getLocalIdentity();
         const remote = this.getRemoteIdentity();
@@ -105,7 +106,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
         this._synchronizing = true;
 
-        this._node = new MeshNode(this.getResources());
+        this._node = new MeshNode(this.getResources() as Resources);
 
         await this.outgoing?.loadAndWatchForChanges();
         await this.incoming?.loadAndWatchForChanges();
@@ -148,7 +149,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     }
 
-    stopSync(ownSync?:{localPeer: PeerInfo, peerSource: PeerSource}): Promise<void> {
+    async stopSync(ownSync?:{localPeer: PeerInfo, peerSource: PeerSource}): Promise<void> {
         
         if (!this._synchronizing) {
             return;
@@ -163,10 +164,10 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         clearTimeout(this._outgoingDisableSyncTimer);
 
         
+        const node = this._node as MeshNode;
 
-
-        this._node.stopSync(this.outgoing?.receivedAck as MutableReference<HashedSet<MutationOp>>, this._peerGroup?.id as string);
-        this._node.stopSync(this.incoming?.messages as MutableSet<Message>, SyncMode.single, this._peerGroup?.id as string);
+        node.stopSync(this.outgoing?.receivedAck as MutableReference<HashedSet<MutationOp>>, this._peerGroup?.id as string);
+        node.stopSync(this.incoming?.messages as MutableSet<Message>, SyncMode.single, this._peerGroup?.id as string);
 
         if (ownSync !== undefined) {
             const pg: PeerGroupInfo = {
@@ -175,8 +176,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
                 peerSource: ownSync.peerSource
             };
 
-            this._node.sync(this.outgoing as MessageInbox, SyncMode.full, pg);
-            this._node.sync(this.incoming as MessageInbox, SyncMode.full, pg);
+            node.sync(this.outgoing as MessageInbox, SyncMode.full, pg);
+            node.sync(this.incoming as MessageInbox, SyncMode.full, pg);
         }
     }
 
@@ -211,28 +212,28 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     private enableOutgoingSync() {
         if (this._synchronizing && !this._outgoingSync) {
             this._outgoingSync = true;
-            this._node.sync(this.outgoing?.messages as MutableSet<Message>, SyncMode.single, this._peerGroup)
+            (this._node as MeshNode).sync(this.outgoing?.messages as MutableSet<Message>, SyncMode.single, this._peerGroup)
         }
     }
 
     private disableOutgoingSync() {
         if (this._synchronizing && this._outgoingSync) {
             this._outgoingSync = false;
-            this._node.stopSync(this.outgoing?.messages as MutableSet<Message>, this._peerGroup?.id as string);
+            (this._node as MeshNode).stopSync(this.outgoing?.messages as MutableSet<Message>, this._peerGroup?.id as string);
         }
     }
 
     private enableIncomingSync() {
         if (this._synchronizing && !this._incomingSync) {
             this._incomingSync = true;
-            this._node.sync(this.incoming?.receivedAck as MutableReference<HashedSet<MutationOp>>, SyncMode.single, this._peerGroup);
+            (this._node as MeshNode).sync(this.incoming?.receivedAck as MutableReference<HashedSet<MutationOp>>, SyncMode.single, this._peerGroup);
         }
     }
 
     private disableIncomingSync() {
         if (this._synchronizing && this._incomingSync) {
             this._incomingSync = false;
-            this._node.stopSync(this.incoming?.receivedAck as MutableReference<HashedSet<MutationOp>>, this._peerGroup?.id as string);
+            (this._node as MeshNode).stopSync(this.incoming?.receivedAck as MutableReference<HashedSet<MutationOp>>, this._peerGroup?.id as string);
         }
     }
 

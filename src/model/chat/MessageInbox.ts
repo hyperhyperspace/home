@@ -1,4 +1,4 @@
-import { Hash, Hashing, HashedObject, HashedSet, ClassRegistry, Identity, MutableReference, MutableSet, MutationOp }  from '@hyper-hyper-space/core';
+import { Hash, Hashing, HashedObject, HashedSet, ClassRegistry, Identity, MutableSet, MutationOp }  from '@hyper-hyper-space/core';
 import { Message } from './Message';
 import { ReceivedAck } from './ReceivedAck';
 
@@ -37,7 +37,7 @@ class MessageInbox extends HashedObject {
     }
 
 
-    async validate(references: Map<string, HashedObject>): Promise<boolean> {
+    async validate(_references: Map<string, HashedObject>): Promise<boolean> {
 
         let sender   = this.getSender();
         let receiver = this.getReceiver();
@@ -62,11 +62,11 @@ class MessageInbox extends HashedObject {
     }
 
     getSender() {
-        return this.messages.writer as Identity;
+        return this.messages?.writer as Identity;
     }
 
     getReceiver() {
-        return this.receivedAck.writer as Identity;
+        return this.receivedAck?.writer as Identity;
     }
 
     inSync() {
@@ -80,7 +80,7 @@ class MessageInbox extends HashedObject {
 
         const receviedTerminalOps = new HashedSet<Hash>(receviedTerminalOpHashes.values())
 
-        return new HashedSet<Hash>(this.messages._terminalOps.keys()).equals(receviedTerminalOps);
+        return new HashedSet<Hash>(this.messages?._terminalOps.keys()).equals(receviedTerminalOps);
     }
 
     private static idFor(sender: Identity, recipient: Identity) {
