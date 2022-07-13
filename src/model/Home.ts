@@ -258,6 +258,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
             }
 
             node.sync(this.profile as Profile, SyncMode.full, this._devicePeers);
+            node.sync(this.contacts as Contacts, SyncMode.full, this._devicePeers)
 
             this.contacts?.profileIsPublic?.addMutationObserver(() => {
                 const profile = this.profile as Profile;
@@ -288,6 +289,9 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
     async stopSync(): Promise<void> {
         this._node?.stopSync(this, this._devicePeers?.id);
+
+        this._node?.stopSync(this.profile as Profile, this._devicePeers?.id);
+        this._node?.stopSync(this.contacts as Contacts, this._devicePeers?.id)
 
         const devices = this.devices?.values()
 
