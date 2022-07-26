@@ -1,4 +1,5 @@
-import { Hash, Hashing, HashedObject, HashedSet, ClassRegistry, Identity, MutableSet, MutationOp }  from '@hyper-hyper-space/core';
+import { Hashing, HashedObject, ClassRegistry, Identity, MutableSet, MutationOp, Hash }  from '@hyper-hyper-space/core';
+import { MessageSet } from './MessageSet';
 import { Message } from './Message';
 import { ReceivedAck } from './ReceivedAck';
 
@@ -8,33 +9,46 @@ class MessageInbox extends HashedObject {
     
     static className = 'hhs-home/v0/MessageInbox';
 
-    messages?: MutableSet<Message>;
+    messages?: MessageSet;
     receivedAck?: ReceivedAck;
 
+    _ackCallback = (mut: MutationOp) => { 
+
+
+
+        if (!this.receivedAck?.has(mut)) {
+            this.receivedAck?.add(mut).then(() => {
+                this.receivedAck?.save();
+                console.log('generated ACK')
+            });
+            
+        }
+
+    };
 
     constructor(sender?: Identity, recipient?: Identity) {
         super();
 
         if (sender !== undefined && recipient !== undefined) {
-            this.setAuthor(sender);
 
             this.setId(MessageInbox.idFor(sender, recipient));
 
-            this.addDerivedField('messages', new MutableSet<Message>({writer: sender}));
-            const messages = this.messages as MutableSet<Message>;
-            messages.typeConstraints = [Message.className];
+            this.addDerivedField('messages', new MessageSet(sender));
+            const messages = this.messages as MessageSet;
 
             this.addDerivedField('receivedAck', new ReceivedAck(messages, recipient))
         }
+    }
+
+    init(): void {
+        
     }
 
     getClassName(): string {
         return MessageInbox.className;
     }
 
-    init(): void {
-        
-    }
+    
 
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -70,17 +84,66 @@ class MessageInbox extends HashedObject {
     }
 
     inSync() {
-        const ack = this.receivedAck?.getValue();
 
-        let receviedTerminalOpHashes = new Array<Hash>();
-
-        if (ack !== undefined) {
-            receviedTerminalOpHashes = Array.from(ack.values()).map((op: MutationOp) => op.hash())
+        for (const op of this.messages?._terminalOps?.values() as IterableIterator<MutationOp>) {
+            if (!this.receivedAck?.has(op)) {
+                return false;
+            }
         }
 
-        const receviedTerminalOps = new HashedSet<Hash>(receviedTerminalOpHashes.values())
+        return true;
+    }
 
-        return new HashedSet<Hash>(this.messages?._terminalOps.keys()).equals(receviedTerminalOps);
+    enableAckGeneration() {
+        this.messages?.addMutationOpCallback(this._ackCallback);
+    }
+
+    disableAckGeneration() {
+        this.messages?.deleteMutationOpCallback(this._ackCallback);
+    }
+
+    async generateMissingAcks(): Promise<void> {
+
+        console.log('about to generate missing acks')
+
+        if (this.receivedAck?.size() === 0) {
+
+            console.log('attempted to laod acks')
+
+            await this.receivedAck?.loadAllChanges();
+        }
+
+        if (!this.inSync()) {
+
+            console.log('not in sync, moving forward')
+
+            const messages = await this.getStore().load(this.messages?.hash() as Hash, false, false) as MutableSet<Message>|undefined;
+
+            if (messages !== undefined) {
+
+                console.log('found messages')
+
+                const cb = (mut: MutationOp) => {
+
+                    console.log('CALLBACK!')
+
+                    if (!this.receivedAck?.has(mut)) {
+                        this.receivedAck?.add(mut);
+                    }
+                };
+
+                messages.addMutationOpCallback(cb);
+
+                await messages.loadAllChanges();
+
+                messages.deleteMutationOpCallback(cb);
+
+                await this.receivedAck?.save();
+            }
+
+
+        }
+
     }
 
     private static idFor(sender: Identity, recipient: Identity) {

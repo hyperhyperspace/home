@@ -1,5 +1,4 @@
-import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, Resources, SpaceEntryPoint, SyncMode } from '@hyper-hyper-space/core';
-import { MutableContentEvents } from '@hyper-hyper-space/core/dist/data/model/mutable/MutableObject';
+import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, Resources, SpaceEntryPoint, SyncMode, MutableContentEvents } from '@hyper-hyper-space/core';
 import { Conversation } from './Conversation';
 import { ConversationSet } from './ConversationSet';
 
@@ -26,7 +25,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
             } else if (ev.action === MutableContentEvents.RemoveObject) {
                 if (this._synchronizing) {
                     const conversation = ev.data as Conversation;
-                    conversation.stopSync();    
+                    conversation.stopSync(this._ownSync);    
                 }
             }
         }
@@ -39,11 +38,12 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         if (owner !== undefined) {
             this.setAuthor(owner);
             this.conversations = new ConversationSet(owner);
+            this.init();
         }
     }
 
     init(): void {
-        
+        this.conversations?.addMutationObserver(this._conversationsObserver);
     }
 
     getClassName(): string {
@@ -59,8 +59,8 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         return this.equals(new ChatSpace(this.getAuthor()));
     }
 
-    // TODO: make startSync and stopSync reentrant, check there are no races between them
-
+    // TODO: make startSync and stopSync reentrant, check they are free of races
+    
     async startSync(ownSync?:{localPeer: PeerInfo, peerSource: PeerSource}): Promise<void> {
 
         if (!this._synchronizing) {
@@ -73,14 +73,14 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
                     peerSource: ownSync.peerSource
                 };
     
+                this._ownSync = ownSync;
+
                 this._node.sync(this.conversations as ConversationSet, SyncMode.single, pg);
             }
     
             const conversations = this.conversations as ConversationSet;
 
             await conversations.loadAndWatchForChanges();
-    
-            conversations.addMutationObserver(this._conversationsObserver);
     
             for (const conversation of conversations.values()) {
                 conversation.startSync(ownSync);
@@ -118,8 +118,22 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         }
     }
 
+    getConversationFor(remoteId: Identity) {
+        const conv = new Conversation(this.getAuthor(), remoteId);
+
+        const existing = this.conversations?.get(conv.hash());
+
+        if (existing !== undefined) {
+            return existing;
+        } else {
+            conv.setResources(this.getResources() as Resources);
+            conv.loadAndWatchForChanges();
+            return conv;
+        }
+    }
+
 }
 
-ClassRegistry.register(ChatSpace.name, ChatSpace);
+ClassRegistry.register(ChatSpace.className, ChatSpace);
 
 export { ChatSpace };

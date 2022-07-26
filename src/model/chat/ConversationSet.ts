@@ -40,7 +40,7 @@ class ConversationSet extends MutableSet<Conversation> {
                 return false;
             }
 
-            if (addition.getLocalIdentity().equals(this.writer)) {
+            if (!addition.getLocalIdentity().equals(this.writer)) {
                 return false;
             }
         }
@@ -50,7 +50,7 @@ class ConversationSet extends MutableSet<Conversation> {
 
     getClassName() {
         return ConversationSet.className;
-    }
+    }    
 
 }
 

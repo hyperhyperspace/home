@@ -16,7 +16,7 @@ import { LocalDeviceInfo } from './devices/LocalDeviceInfo';
 import { LinkedDevicesPeerSource } from './devices/LinkedDevicesPeerSource';
 
 import { Profile } from './social/Profile';
-import { Contacts } from '..';
+import { Contacts } from './social/Contacts';
 
 
 type FolderItem = Folder | SpaceLink;

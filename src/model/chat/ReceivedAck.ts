@@ -1,15 +1,18 @@
-import { HashedObject, HashedSet, Identity, MutableReference, MutableSet, MutationOp, RefUpdateOp } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, HashReference, Identity, MutableSet, MutableSetAddOp, MutationOp } from '@hyper-hyper-space/core';
 import { Message } from './Message';
+import { MessageSet } from './MessageSet';
 
 
-class ReceivedAck extends MutableReference<HashedSet<MutationOp>> {
+class ReceivedAck extends MutableSet<MutationOp> {
 
-    messages?: MutableSet<Message>;
+    static className = 'hhs-home/v0/ReceivedAck'
+
+    messages?: HashReference<MutableSet<Message>>;
 
     constructor(messages?: MutableSet<Message>, recipient?: Identity) {
         super({writer: recipient});
 
-        this.messages = messages;
+        this.messages = messages?.createReference();
     }
 
     shouldAcceptMutationOp(op: MutationOp, opReferences: Map<string, HashedObject>) {
@@ -18,23 +21,18 @@ class ReceivedAck extends MutableReference<HashedSet<MutationOp>> {
             return false;
         }
 
-        const updateOp = op as RefUpdateOp<HashedSet<MutationOp>>;
-        const val = updateOp.value;
+        if (op instanceof MutableSetAddOp) {
 
-        if (val !== undefined) {
-            if(!(val instanceof HashedSet)) {
+            const innerOp = op.element;
+
+            if (!(innerOp instanceof MutationOp)) {
                 return false;
             }
 
-            for (const elmt of val.values()) {
-                if (!(elmt instanceof MutationOp)) {
-                    return false;
-                }
-
-                if (!this.messages?.shouldAcceptMutationOp(elmt, opReferences)) {
-                    return false;
-                }
+            if (!(innerOp.targetObject?.getLastHash() === this.messages?.hash)) {
+                return false;
             }
+
         }
 
         return true;
@@ -46,13 +44,29 @@ class ReceivedAck extends MutableReference<HashedSet<MutationOp>> {
             return false;
         }
 
-        if (!(this.messages instanceof MutableSet)) {
+        if (!(this.messages instanceof HashReference)) {
             return false;
         }
 
-        return this.equals(new ReceivedAck(this.messages, this.writer));
+        const messages = references.get(this.messages.hash);
+
+        if (!(messages instanceof MessageSet)) {
+            return false;
+        }
+
+        const clone = new ReceivedAck(messages, this.writer);
+
+        clone.setId(this.getId() as string);
+
+        return this.equals(clone);
+    }
+
+    getClassName() {
+        return ReceivedAck.className;
     }
 
 }
+
+ClassRegistry.register(ReceivedAck.className, ReceivedAck);
 
 export { ReceivedAck };
