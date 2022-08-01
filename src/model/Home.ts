@@ -347,7 +347,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         for (const device of this.devices.values()) {
             const localDeviceInfo = new LocalDeviceInfo(device.hash(), this.getAuthor());
-            if (await this.getStore().load(localDeviceInfo.hash()) !== undefined) {
+            if (await this.getStore().load(localDeviceInfo.hash(), false) !== undefined) {
                 return device;
             }
         }

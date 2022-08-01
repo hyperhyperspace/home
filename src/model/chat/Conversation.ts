@@ -1,4 +1,4 @@
-import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp } from '@hyper-hyper-space/core';
+import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp, GrowOnlySet } from '@hyper-hyper-space/core';
 import { Message } from './Message';
 import { MessageInbox } from './MessageInbox';
 
@@ -254,7 +254,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
             peerSource: peerSource
         };
 
-        this._node.sync(this.outgoing?.receivedAck as MutableSet<MutationOp>, SyncMode.single, this._passivePeerGroup);
+        this._node.sync(this.outgoing?.receivedAck as GrowOnlySet<MutationOp>, SyncMode.single, this._passivePeerGroup);
         this._node.sync(this.incoming?.messages as MutableSet<Message>, SyncMode.single, this._passivePeerGroup);
 
         this.enableIncomingSync();
@@ -284,7 +284,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         
         const node = this._node as MeshNode;
 
-        node.stopSync(this.outgoing?.receivedAck as MutableSet<MutationOp>, this._passivePeerGroup?.id as string);
+        node.stopSync(this.outgoing?.receivedAck as GrowOnlySet<MutationOp>, this._passivePeerGroup?.id as string);
         node.stopSync(this.incoming?.messages as MutableSet<Message>, this._passivePeerGroup?.id as string);
 
         if (ownSync !== undefined) {
@@ -347,7 +347,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         if (this._synchronizing && !this._incomingSync) {
             this._incomingSync = true;
             Conversation.log.debug('Enabling incoming sync for ' + this.getLastHash());
-            (this._node as MeshNode).sync(this.incoming?.receivedAck as MutableSet<MutationOp>, SyncMode.single, this._activePeerGroup);
+            (this._node as MeshNode).sync(this.incoming?.receivedAck as GrowOnlySet<MutationOp>, SyncMode.single, this._activePeerGroup);
         }
     }
 
@@ -355,7 +355,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         if (this._synchronizing && this._incomingSync) {
             this._incomingSync = false;
             Conversation.log.debug('Disabling incoming sync for ' + this.getLastHash());
-            (this._node as MeshNode).stopSync(this.incoming?.receivedAck as MutableSet<MutationOp>, this._activePeerGroup?.id as string);
+            (this._node as MeshNode).stopSync(this.incoming?.receivedAck as GrowOnlySet<MutationOp>, this._activePeerGroup?.id as string);
         }
     }
 

@@ -17,7 +17,7 @@ class MessageInbox extends HashedObject {
 
 
         if (!this.receivedAck?.has(mut)) {
-            this.receivedAck?.add(mut).then(() => {
+            this.receivedAck?.add(mut, this.receivedAck?.getRecipient()).then(() => {
                 this.receivedAck?.save();
                 console.log('generated ACK')
             });
@@ -80,7 +80,7 @@ class MessageInbox extends HashedObject {
     }
 
     getReceiver() {
-        return this.receivedAck?.writer as Identity;
+        return this.receivedAck?.getRecipient() as Identity;
     }
 
     inSync() {
@@ -128,7 +128,8 @@ class MessageInbox extends HashedObject {
                     console.log('CALLBACK!')
 
                     if (!this.receivedAck?.has(mut)) {
-                        this.receivedAck?.add(mut);
+                        this.receivedAck?.add(mut, this.receivedAck?.getRecipient());
+                        console.log('GENERATED ACK FROM CALLBACK')
                     }
                 };
 
