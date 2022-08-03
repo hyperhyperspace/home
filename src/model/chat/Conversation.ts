@@ -1,4 +1,4 @@
-import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp, GrowOnlySet } from '@hyper-hyper-space/core';
+import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp, GrowOnlySet, HashedSet, GrowOnlySetEvents } from '@hyper-hyper-space/core';
 import { Message } from './Message';
 import { MessageInbox } from './MessageInbox';
 
@@ -12,6 +12,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     outgoing?: MessageInbox;
     incoming?: MessageInbox;
+
+    read?: GrowOnlySet<Hash>;
 
     _synchronizing = false;
 
@@ -28,6 +30,11 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     _unconfirmedMessages: Set<Hash>;
     _earlyAcks          : Set<Hash>;
+
+    _sortedMessages: Array<Message>;
+
+    _unreadMessages: Set<Hash>;
+    _earlyReads    : Set<Hash>;
 
     _outgoingDisableSyncCallback = () => {
         
@@ -63,15 +70,31 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     }
 
-    _sortedMessages: Array<Message>;
+    
+
+    _readObserver = (ev: Event<HashedObject>) => {
+
+        if (ev.emitter === this.read) {
+
+            if (ev.action === GrowOnlySetEvents.Add) {
+
+                const msgHash = ev.data as Hash;
+
+                if (this._unreadMessages.has(msgHash)) {
+                    this._unreadMessages.delete(msgHash);
+                } else {
+                    this._earlyReads.add(msgHash);
+                }
+            }
+
+        }
+
+    }
 
     _acksObserver = (ev: Event<HashedObject>) => {
 
         if (ev.emitter === this.outgoing?.receivedAck) {
             if (ev.action === MutableContentEvents.AddObject) {
-
-                console.log('ACK received')
-
                 const addOp = ev.data as MutableSetAddOp<Message>;
                 const m = addOp.element as Message;
                 const h = m.getLastHash();
@@ -90,6 +113,25 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
         const sorted = this._sortedMessages as Array<Message>;
 
+        if (ev.emitter === this.incoming?.messages) {
+            if (ev.action === MutableContentEvents.AddObject) {
+
+                console.log('MSG received')
+
+                const m = ev.data;
+                const h = m.getLastHash();
+
+                if (this._earlyReads.has(h)) {
+                    this._earlyReads.delete(h);
+                } else {
+                    this._unreadMessages.add(h);
+                }
+
+            } else if (ev.action === MutableContentEvents.RemoveObject) {
+
+            }
+        }
+
         if (ev.emitter === this.outgoing?.messages) {
             if (ev.action === MutableContentEvents.AddObject) {
 
@@ -103,6 +145,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
                 } else {
                     this._unconfirmedMessages.add(h);
                 }
+
+                this.checkInvoke();
 
             } else if (ev.action === MutableContentEvents.RemoveObject) {
 
@@ -150,9 +194,13 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     constructor(local?: Identity, remote?: Identity) {
         super();
 
+        this.addDerivedField('read');
+
         if (local !== undefined && remote !== undefined) {
             this.outgoing = new MessageInbox(local, remote);
             this.incoming = new MessageInbox(remote, local);
+
+            this.setDerivedField('read', new GrowOnlySet<Hash>({writers: new HashedSet<Identity>([local].values())}));
 
             this.init();
         }
@@ -160,6 +208,9 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         this._sortedMessages = [];
         this._unconfirmedMessages = new Set();
         this._earlyAcks           = new Set();
+        this._unreadMessages      = new Set();
+        this._earlyReads          = new Set();
+
     }
 
     getClassName(): string {
@@ -171,6 +222,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         this.outgoing?.messages?.addMutationObserver(this._messagesObserver);
 
         this.outgoing?.receivedAck?.addMutationObserver(this._acksObserver);
+
+        this.read?.addMutationObserver(this._readObserver);
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -203,16 +256,22 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
             return;
         }
 
-        Conversation.log.debug('starting sync for conversation ' + this.getLastHash());
-
-        this._synchronizing = true;
-
         this._node = new MeshNode(this.getResources() as Resources);
 
-        const loadOutgoing = this.outgoing?.loadAndWatchForChanges();
-        const loadIncoming =  this.incoming?.loadAndWatchForChanges();
+        const loadOutgoingMessages = this.outgoing?.messages?.loadAndWatchForChanges();
+        const loadOutgoingAcks     = this.outgoing?.receivedAck?.loadAndWatchForChanges();
 
-        await Promise.all([loadOutgoing, loadIncoming]);
+        
+        const loadIncomingAcks     = this.incoming?.receivedAck?.loadAndWatchForChanges();        
+
+        const loadRead             = this.read?.loadAndWatchForChanges();
+
+        await Promise.all([loadOutgoingMessages, loadOutgoingAcks, loadIncomingAcks, loadRead]);
+
+        const loadIncomingMessages = this.incoming?.messages?.loadAndWatchForChanges();
+        await loadIncomingMessages;
+
+        this._synchronizing = true;
 
         this.incoming?.enableAckGeneration();
         await this.incoming?.generateMissingAcks();
@@ -226,16 +285,15 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
             this._node.sync(this.outgoing as MessageInbox, SyncMode.full, pg);
             this._node.sync(this.incoming as MessageInbox, SyncMode.full, pg);
+            this._node.sync(this.read as GrowOnlySet<Hash>, SyncMode.single, pg);
         }
 
         const localIdHash = this.getLocalIdentity().hash();
         const remoteIdHash = this.getRemoteIdentity().hash();
 
         const activePeerGroupId = Hashing.forString('conversation-flow-' + remoteIdHash + '-to-' + localIdHash);
-        Conversation.log.trace('conv ' + this.getLastHash() + ' active peer group id: ' + activePeerGroupId);
 
         const passivePeerGroupId = Hashing.forString('conversation-flow-' + localIdHash + '-to-' + remoteIdHash);
-        Conversation.log.trace('conv ' + this.getLastHash() + ' passive peer group id: ' + passivePeerGroupId);
 
         const localPeer  = await IdentityPeer.fromIdentity(this.getLocalIdentity()).asPeer();
         const remotePeer = await IdentityPeer.fromIdentity(this.getRemoteIdentity()).asPeer();
@@ -264,6 +322,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
         this.checkIncomingState();
         this.checkOutgoingState();
+
+        this.checkInvoke();
 
     }
 
@@ -296,6 +356,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
             node.stopSync(this.outgoing as MessageInbox, pg.id);
             node.stopSync(this.incoming as MessageInbox, pg.id);
+            node.stopSync(this.read as GrowOnlySet<Hash>, pg.id);
         }
     }
 
@@ -380,6 +441,31 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
         await this.outgoing?.messages?.add(m);
         await this.outgoing?.messages?.save();
+    }
+
+    async markAsRead() {
+
+        if (this._unreadMessages.size > 0) {
+            for (const h of this._unreadMessages) {
+                await this.read?.add(h, this.getLocalIdentity());
+            }
+            await this.read?.save();
+        }
+    }
+
+    private checkInvoke() {
+        if (this._synchronizing && this.outgoing?.messages?.size() as number > 0 && this.outgoing?.receivedAck?.size() === 0) {
+            this.invoke();
+        }
+    }
+
+    private invoke() {
+        console.log('ASKING FOR SPAWN to ' + this.getRemoteIdentity().hash());
+        this._node?.sendObjectSpawnRequest(this.invert(), this.getLocalIdentity(), this.getRemoteIdentity());
+    }
+
+    private invert() {
+        return new Conversation(this.getRemoteIdentity(), this.getLocalIdentity());
     }
 }
 

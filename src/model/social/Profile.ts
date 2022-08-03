@@ -51,56 +51,66 @@ class Profile extends HashedObject implements SpaceEntryPoint {
     }
 
     async startSync(config?: {owner?: boolean, requester?: Identity}): Promise<void> {
-        await this.loadAndWatchForChanges();
 
-        this._node = new MeshNode(this.getResources() as Resources);
 
-        const peerGroupId = this.hash();
+        if (this._node === undefined) {
 
-        const ownerPeer = await IdentityPeer.fromIdentity(this.owner as Identity).asPeer();
+            this._node = new MeshNode(this.getResources() as Resources);
 
-        if (config?.owner) {
+            await this.loadAndWatchForChanges();
 
-            // TODO: Create a new broadcast mode where the broadcaster has to proof possesing an identity
-            //       that's being used in the broadcast. This would enable a semi-private object discovery,
-            //       where only the linkup server and the broadcast can know about the query (since no 3rd
-            //       party could broadcast -and receive queries- without authenticating).
+            const peerGroupId = this.hash();
 
-            // this._node.authorBroadcast(this.getAuthor() as Identity);
+            const ownerPeer = await IdentityPeer.fromIdentity(this.owner as Identity).asPeer();
 
-            this._node.broadcast(this.owner as Identity);
-            this._node.broadcast(this);
+            if (config?.owner) {
 
-            console.log('broadcasting profile ' + this.hash())
+                // TODO: Create a new broadcast mode where the broadcaster has to proove possesing an identity
+                //       that's being used in the broadcast. This would enable a semi-private object discovery,
+                //       where only the linkup server and the broadcast can know about the query (since no 3rd
+                //       party could broadcast -and receive queries- without authenticating).
 
-            this._peerGroup = {
-                id: peerGroupId,
-                peerSource: new EmptyPeerSource(IdentityPeer.getEndpointParser()),
-                localPeer: ownerPeer
+                // this._node.authorBroadcast(this.getAuthor() as Identity);
+
+                this._node.broadcast(this.owner as Identity);
+                this._node.broadcast(this);
+
+                console.log('broadcasting profile ' + this.hash())
+
+                this._peerGroup = {
+                    id: peerGroupId,
+                    peerSource: new EmptyPeerSource(IdentityPeer.getEndpointParser()),
+                    localPeer: ownerPeer
+                }
+            } else {
+
+                const localPeer = config?.requester !== undefined? 
+                                    await IdentityPeer.fromIdentity(config?.requester).asPeer()
+                                :
+                                    (this.getResources() as Resources).getPeersForDiscovery()[0];
+
+                this._peerGroup = {
+                    id: peerGroupId,
+                    peerSource: new ConstantPeerSource([ownerPeer].values()),
+                    localPeer: localPeer
+                }
             }
-        } else {
+            
+            
+            this._node.sync(this, SyncMode.full, this._peerGroup);
 
-            const localPeer = config?.requester !== undefined? 
-                                await IdentityPeer.fromIdentity(config?.requester).asPeer()
-                            :
-                                (this.getResources() as Resources).getPeersForDiscovery()[0];
-
-            this._peerGroup = {
-                id: peerGroupId,
-                peerSource: new ConstantPeerSource([ownerPeer].values()),
-                localPeer: localPeer
-            }
         }
-        
-        
-        this._node.sync(this, SyncMode.full, this._peerGroup);
     }
 
     async stopSync(): Promise<void> {
+
         if (this._node !== undefined && this._peerGroup !== undefined) {
+            this.dontWatchForChanges();
             this._node.stopBroadcast(this.owner as Identity);
             this._node.stopBroadcast(this);
-            this._node.stopSync(this, this.hash());
+            this._node.stopSync(this, this._peerGroup.id);
+            this._node = undefined;
+            this._peerGroup = undefined;
         }
     }
 

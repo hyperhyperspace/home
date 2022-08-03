@@ -14,8 +14,6 @@ class MessageInbox extends HashedObject {
 
     _ackCallback = (mut: MutationOp) => { 
 
-
-
         if (!this.receivedAck?.has(mut)) {
             this.receivedAck?.add(mut, this.receivedAck?.getRecipient()).then(() => {
                 this.receivedAck?.save();
@@ -108,7 +106,7 @@ class MessageInbox extends HashedObject {
 
         if (this.receivedAck?.size() === 0) {
 
-            console.log('attempted to laod acks')
+            console.log('attempted to load acks')
 
             await this.receivedAck?.loadAllChanges();
         }

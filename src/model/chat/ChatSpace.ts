@@ -1,4 +1,4 @@
-import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, Resources, SpaceEntryPoint, SyncMode, MutableContentEvents } from '@hyper-hyper-space/core';
+import { ClassRegistry, Event, HashedObject, Hashing, Identity, MeshNode, MutationObserver, PeerGroupInfo, PeerInfo, PeerSource, Resources, SpaceEntryPoint, SyncMode, MutableContentEvents, Endpoint } from '@hyper-hyper-space/core';
 import { Conversation } from './Conversation';
 import { ConversationSet } from './ConversationSet';
 
@@ -29,7 +29,6 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
                 }
             }
         }
-
     }
 
     constructor(owner?: Identity) {
@@ -65,6 +64,10 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
 
         if (!this._synchronizing) {
             this._node = new MeshNode(this.getResources() as Resources);
+    
+            const conversations = this.conversations as ConversationSet;
+
+            await conversations.loadAndWatchForChanges();
 
             if (ownSync !== undefined) {
                 const pg: PeerGroupInfo = {
@@ -77,14 +80,32 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
 
                 this._node.sync(this.conversations as ConversationSet, SyncMode.single, pg);
             }
-    
-            const conversations = this.conversations as ConversationSet;
 
-            await conversations.loadAndWatchForChanges();
-    
             for (const conversation of conversations.values()) {
-                conversation.startSync(ownSync);
+                conversation.startSync(ownSync);    
             }
+
+            console.log('listening for spawn requests for ' + this.getAuthor()?.hash());
+
+            this._node?.addObjectSpawnCallback(async (object: HashedObject, sender: Identity, _senderEndpoint: Endpoint) => {
+
+                console.log('RECEIVED SPAWN')
+
+                if (object instanceof Conversation) {
+
+                    const conv = object as Conversation;
+
+                    if (conv.getLocalIdentity().equals(this.getAuthor()) && conv.getRemoteIdentity().equals(sender)) {
+                        if (!conversations.has(conv)) {
+                            await this.getResources()?.store.save(conv);
+                            await this.conversations?.add(conv);
+                            await this.conversations?.save();    
+                        }
+                        console.log('CONVESATION SPAWNED');
+                    }
+
+                }
+            }, this.getAuthor() as Identity);
 
             this._synchronizing = true;
         }
