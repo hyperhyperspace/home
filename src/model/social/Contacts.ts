@@ -83,7 +83,7 @@ class Contacts extends HashedObject {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.current.writer))) {
+        if (!(this.getAuthor()?.equals(this.current.getSingleWriter()))) {
             return false;
         }
 

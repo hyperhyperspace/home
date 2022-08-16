@@ -175,7 +175,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.devices.writer))) {
+        if (!(this.getAuthor()?.equals(this.devices.getSingleWriter()))) {
             return false;
         }
 

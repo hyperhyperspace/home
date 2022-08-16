@@ -421,11 +421,11 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     }
 
     getLocalIdentity() {
-        return this.outgoing?.messages?.writer as Identity;
+        return this.outgoing?.messages?.getSingleWriter() as Identity;
     }
 
     getRemoteIdentity() {
-        return this.incoming?.messages?.writer as Identity;
+        return this.incoming?.messages?.getSingleWriter() as Identity;
     }
 
     getSortedMessages(): Array<Message> {

@@ -21,11 +21,11 @@ class ConversationSet extends MutableSet<Conversation> {
             return false;
         }
 
-        if (this.writer === undefined) {
+        if (this.writers === undefined) {
             return false;
         }
 
-        return this.equals(new ConversationSet(this.writer));
+        return this.equals(new ConversationSet(this.getSingleWriter()));
     }
 
     shouldAcceptMutationOp(op: MutationOp, opReferences: Map<Hash, HashedObject>) {
@@ -40,7 +40,7 @@ class ConversationSet extends MutableSet<Conversation> {
                 return false;
             }
 
-            if (!addition.getLocalIdentity().equals(this.writer)) {
+            if (!addition.getLocalIdentity().equals(this.getSingleWriter())) {
                 return false;
             }
         }

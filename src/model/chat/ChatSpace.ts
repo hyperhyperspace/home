@@ -20,6 +20,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
             if (ev.action === MutableContentEvents.AddObject) {
                 if (this._synchronizing) {
                     const conversation = ev.data as Conversation;
+                    console.log('starting sync of conversation with ' + conversation.getRemoteIdentity().info?.name);
                     conversation.startSync(this._ownSync);    
                 }
             } else if (ev.action === MutableContentEvents.RemoveObject) {
@@ -82,6 +83,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
             }
 
             for (const conversation of conversations.values()) {
+                console.log('starting sync of conversation with ' + conversation.getRemoteIdentity().info?.name);
                 conversation.startSync(ownSync);    
             }
 

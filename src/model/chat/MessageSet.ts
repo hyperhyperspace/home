@@ -15,15 +15,11 @@ class MessageSet extends MutableSet<Message> {
             return false;
         }
 
-        if (this.writer === undefined) {
-            return false;
-        }
-
         if (this.getId() === undefined) {
             return false;
         }
 
-        const clone = new MessageSet(this.writer);
+        const clone = new MessageSet(this.getSingleWriter());
 
         clone.setId(this.getId() as string);
 
@@ -42,7 +38,7 @@ class MessageSet extends MutableSet<Message> {
                 return false;
             }
 
-            if (!this.writer?.equals(addition.getAuthor())) {
+            if (!this.getSingleWriter()?.equals(addition.getAuthor())) {
                 return false;
             }
         }

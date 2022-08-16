@@ -74,7 +74,7 @@ class MessageInbox extends HashedObject {
     }
 
     getSender() {
-        return this.messages?.writer as Identity;
+        return this.messages?.getSingleWriter() as Identity;
     }
 
     getReceiver() {
