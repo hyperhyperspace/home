@@ -138,7 +138,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.owner?.equals(this.picture.writer))) {
+        if (!this.picture.hasSingleWriter() || !(this.owner?.equals(this.picture.getSingleWriter()))) {
             return false;
         }
 
@@ -160,7 +160,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.owner?.equals(this.thumbnail.writer))) {
+        if (!this.thumbnail.hasSingleWriter() || !(this.owner?.equals(this.thumbnail.getSingleWriter()))) {
             return false;
         }
 
@@ -182,7 +182,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.owner?.equals(this.pictureMIMEType.writer))) {
+        if (!this.pictureMIMEType.hasSingleWriter() || !(this.owner?.equals(this.pictureMIMEType.getSingleWriter()))) {
             return false;
         }
 
@@ -204,7 +204,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.owner?.equals(this.thumbnailMIMEType.writer))) {
+        if (!this.thumbnailMIMEType.hasSingleWriter() || !(this.owner?.equals(this.thumbnailMIMEType.getSingleWriter()))) {
             return false;
         }
 
@@ -226,7 +226,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!(this.owner?.equals(this.about.writer))) {
+        if (!this.about.hasSingleWriter() || !(this.owner?.equals(this.about.getSingleWriter()))) {
             return false;
         }
 

@@ -57,7 +57,7 @@ class Contacts extends HashedObject {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.profileIsPublic.writer))) {
+        if (!this.profileIsPublic.hasSingleWriter() || !(this.getAuthor()?.equals(this.profileIsPublic.getSingleWriter()))) {
             return false;
         }
 

@@ -58,7 +58,7 @@ class LocalDeviceInfo extends HashedObject {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.content.writer))) {
+        if (!this.content.hasSingleWriter() || !(this.getAuthor()?.equals(this.content.getSingleWriter()))) {
             return false;
         }
 

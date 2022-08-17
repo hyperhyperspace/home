@@ -77,7 +77,7 @@ class SpaceLink extends HashedObject {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.name.writer))) {
+        if (!this.name.hasSingleWriter() || !(this.getAuthor()?.equals(this.name.getSingleWriter()))) {
             return false;
         }
 
