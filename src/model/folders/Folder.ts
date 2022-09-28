@@ -142,7 +142,11 @@ class Folder extends HashedObject {
             return false;
         }
 
-        if (!(this.getAuthor()?.equals(this.items.writer))) {
+        if (!this.items?.hasSingleWriter()) {
+            return false;
+        }
+
+        if (!(this.getAuthor()?.equals(this.items.getSingleWriter()))) {
             return false;
         }
 
