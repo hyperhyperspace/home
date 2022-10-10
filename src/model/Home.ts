@@ -115,10 +115,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
             this.desktop.root?.name?.setValue('Desktop');
             
-            const devices = new MutableSet<Device>({writer: owner});
+            const devices = new MutableSet<Device>({writer: owner, acceptedTypes: [Device.className]});
             devices.setAuthor(owner);
-            devices.typeConstraints = [Device.className];
-
             this.addDerivedField('devices', devices);
 
             this.profile = new Profile(owner);
@@ -179,15 +177,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
-        if (!Array.isArray(this.devices.typeConstraints)) {
-            return false;
-        }
 
-        if (this.devices.typeConstraints.length !== 1) {
-            return false;
-        }
-
-        if (this.devices.typeConstraints[0] !== Device.className) {
+        if (!this.devices.validateAcceptedTypes([Device.className])) {
             return false;
         }
 

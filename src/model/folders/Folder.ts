@@ -1,4 +1,4 @@
-import { ClassRegistry, Hash, HashedObject, Identity, location, MutableArray, MutableReference, MutationEvent, MutationObserver, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, Hash, HashedObject, Identity, location, MutableArray, MutableReference, MutationEvent, MutationObserver } from '@hyper-hyper-space/core';
 import { MutableContentEvents } from '@hyper-hyper-space/core/dist/data/model/mutable/MutableObject';
 
 import { SpaceLink } from './SpaceLink';
@@ -14,6 +14,9 @@ type FolderEvent = AddToFolderEvent | RemoveFromFolderEvent | RenameFolderEvent;
 class Folder extends HashedObject {
 
     static className = 'hhs-home/v0/Folder';
+
+    static nameAcceptedTypes  = ['string'];
+    static itemsAcceptedTypes = [Folder.className, SpaceLink.className];
 
     name?: MutableReference<string>;
     items?: MutableArray<FolderItem>
@@ -72,12 +75,10 @@ class Folder extends HashedObject {
                 this.setId(id);
             }
             
-            const name = new MutableReference({writer: owner});
-            name.typeConstraints = ['string'];
+            const name = new MutableReference({writer: owner, acceptedTypes: Folder.nameAcceptedTypes});
             this.addDerivedField('name', name);
             
-            const items = new MutableArray<HashedObject>({writer: owner, duplicates: false});
-            items.typeConstraints = [Folder.className, SpaceLink.className];
+            const items = new MutableArray<HashedObject>({writer: owner, acceptedTypes: Folder.itemsAcceptedTypes, duplicates: false});
             this.addDerivedField('items', items);
 
             this.setAuthor(owner);
@@ -114,7 +115,7 @@ class Folder extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.name?.typeConstraints, ['string'])) {
+        if (!this.name.validateAcceptedTypes(Folder.nameAcceptedTypes)) {
             return false;
         }
 
@@ -138,7 +139,7 @@ class Folder extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.items.typeConstraints, [Folder.className, SpaceLink.className])) {
+        if (!this.items.validateAcceptedTypes(Folder.itemsAcceptedTypes)) {
             return false;
         }
 

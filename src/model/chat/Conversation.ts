@@ -1,4 +1,4 @@
-import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp, GrowOnlySet, HashedSet, GrowOnlySetEvents } from '@hyper-hyper-space/core';
+import { HashedObject, Event, ClassRegistry, Identity, SpaceEntryPoint, PeerInfo, PeerSource, MeshNode, SyncMode, PeerGroupInfo, Hashing, IdentityPeer, ConstantPeerSource, MutationObserver, MutationOp, MutableSet, Resources, MutableContentEvents, Logger, LogLevel, Hash, MutableSetAddOp, GrowOnlySet, GrowOnlySetEvents } from '@hyper-hyper-space/core';
 import { Message } from './Message';
 import { MessageInbox } from './MessageInbox';
 
@@ -200,7 +200,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
             this.outgoing = new MessageInbox(local, remote);
             this.incoming = new MessageInbox(remote, local);
 
-            this.setDerivedField('read', new GrowOnlySet<Hash>({writers: new HashedSet<Identity>([local].values())}));
+            this.setDerivedField('read', new GrowOnlySet<Hash>({writers: [local].values()}));
 
             this.init();
         }

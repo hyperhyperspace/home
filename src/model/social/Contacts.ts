@@ -1,4 +1,4 @@
-import { ClassRegistry, Hash, HashedObject, Identity, MutableReference, MutableSet, RSAPublicKey, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, Hash, HashedObject, Identity, MutableReference, MutableSet, RSAPublicKey } from '@hyper-hyper-space/core';
 
 import { Profile } from './Profile';
 
@@ -24,12 +24,8 @@ class Contacts extends HashedObject {
                 this.setRandomId();
             }
 
-            this.addDerivedField('profileIsPublic', new MutableReference({writer: owner}));
-            this.addDerivedField('current', new MutableSet({writer: owner}));
-
-            (this.profileIsPublic as MutableReference<boolean>).typeConstraints = ['boolean'];
-            (this.current as MutableSet<Profile>).typeConstraints = [Profile.className];
-            
+            this.addDerivedField('profileIsPublic', new MutableReference({writer: owner, acceptedTypes: ['boolean']}));
+            this.addDerivedField('current', new MutableSet({writer: owner, acceptedTypes: [Profile.className]}));
         }
     }
 
@@ -61,11 +57,7 @@ class Contacts extends HashedObject {
             return false;
         }
 
-        if (!Types.isTypeConstraint(this.profileIsPublic.typeConstraints)) {
-            return false;
-        }
-
-        if (!Types.checkTypeConstraint(this.profileIsPublic.typeConstraints, ['boolean'])){
+        if (!this.profileIsPublic.validateAcceptedTypes(['boolean'])){
             return false;
         }
 
@@ -87,11 +79,7 @@ class Contacts extends HashedObject {
             return false;
         }
 
-        if (!Types.isTypeConstraint(this.current.typeConstraints)) {
-            return false;
-        }
-
-        if (!Types.checkTypeConstraint(this.current.typeConstraints, [Profile.className])){
+        if (!this.current.validateAcceptedTypes([Profile.className])){
             return false;
         }
         

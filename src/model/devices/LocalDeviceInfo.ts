@@ -1,4 +1,4 @@
-import { HashedObject, ClassRegistry, MutableReference, HashedLiteral, Identity, Types } from '@hyper-hyper-space/core';
+import { HashedObject, ClassRegistry, MutableReference, HashedLiteral, Identity } from '@hyper-hyper-space/core';
 
 class LocalDeviceInfo extends HashedObject {
 
@@ -19,8 +19,7 @@ class LocalDeviceInfo extends HashedObject {
 
             this.setAuthor(owner);
 
-            const content = new MutableReference({writer: owner});
-            content.typeConstraints = [HashedLiteral.className];
+            const content = new MutableReference({writer: owner, acceptedTypes: [HashedLiteral.className]});
             content.setAuthor(owner);
             this.addDerivedField('content', content);
         }
@@ -50,7 +49,7 @@ class LocalDeviceInfo extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.content?.typeConstraints, [HashedLiteral.className])) {
+        if (!this.content?.validateAcceptedTypes([HashedLiteral.className])) {
             return false;
         }
 

@@ -1,4 +1,4 @@
-import { ClassRegistry, HashedObject, Identity, MutableReference, RSAPublicKey, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, MutableReference, RSAPublicKey } from '@hyper-hyper-space/core';
 
 import { LocalDeviceInfo } from './LocalDeviceInfo';
 
@@ -21,8 +21,7 @@ class Device extends HashedObject {
             }
             
 
-            const name = new MutableReference({writer: owner});
-            name.typeConstraints = ['string'];
+            const name = new MutableReference({writer: owner, acceptedTypes: ['string']});
             name.setAuthor(owner);
             this.addDerivedField('name', name);
 
@@ -57,7 +56,7 @@ class Device extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.name.typeConstraints, ['string'])) {
+        if (!this.name.validateAcceptedTypes(['string'])) {
             return false;
         }
 

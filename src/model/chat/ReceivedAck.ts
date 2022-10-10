@@ -10,7 +10,7 @@ class ReceivedAck extends GrowOnlySet<MutationOp> {
     messages?: HashReference<MutableSet<Message>>;
 
     constructor(messages?: MutableSet<Message>, recipient?: Identity) {
-        super({writers: new HashedSet<Identity>((recipient === undefined? [] : [recipient]).values())});
+        super({writers: ((recipient === undefined? [] : [recipient]).values())});
 
         this.messages = messages?.createReference();
     }

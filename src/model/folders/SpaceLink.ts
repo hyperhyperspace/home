@@ -1,4 +1,4 @@
-import { ClassRegistry, HashedObject, Identity, location, MutableReference, MutationEvent, MutationObserver, Types } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Identity, location, MutableReference, MutationEvent, MutationObserver } from '@hyper-hyper-space/core';
 
 
 type RenameSpaceLinkEvent = {emitter: SpaceLink, action: 'rename', path?: location<HashedObject>[], data: string};
@@ -26,8 +26,7 @@ class SpaceLink extends HashedObject {
 
             this.spaceEntryPoint = spaceEntryPoint;
 
-            const localName = new MutableReference({writer: owner});
-            localName.typeConstraints = ['string'];
+            const localName = new MutableReference({writer: owner, acceptedTypes: ['string']});
             this.addDerivedField('name', localName);
         }
 
@@ -73,7 +72,7 @@ class SpaceLink extends HashedObject {
             return false;
         }
 
-        if (!Types.checkTypeConstraint(this.name.typeConstraints, ['string'])) {
+        if (!this.name.validateAcceptedTypes(['string'])) {
             return false;
         }
 
