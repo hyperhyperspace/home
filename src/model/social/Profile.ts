@@ -253,6 +253,10 @@ class Profile extends HashedObject implements SpaceEntryPoint {
         }
     }
 
+    getName() {
+        return this.getAuthor()?.info?.name as string|undefined;
+    }
+
     private getDerivedId() {
         return Hashing.forString('profile-for-' + this.owner?.hash());
     }

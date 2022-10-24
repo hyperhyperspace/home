@@ -1,4 +1,4 @@
-import { MutationEvent, MutationObserver, LinkupManager, SyncMode, MutableArray } from '@hyper-hyper-space/core';
+import { MutationEvent, MutationObserver, LinkupManager, SyncMode, MutableArray, Space } from '@hyper-hyper-space/core';
 import { ClassRegistry, Hash, HashedObject, Hashing } from '@hyper-hyper-space/core';
 import { Identity } from '@hyper-hyper-space/core';
 import { MutableSet, MutableSetEvents } from '@hyper-hyper-space/core';
@@ -421,6 +421,9 @@ class Home extends HashedObject implements SpaceEntryPoint {
         await this.devices?.loadAllChanges(loadBatchSize);
     }*/
 
+    getName() {
+        return "Home for " + Space.getWordCodingFor(this.getAuthor() as Identity);
+    }
 }
 
 ClassRegistry.register(Home.className, Home);

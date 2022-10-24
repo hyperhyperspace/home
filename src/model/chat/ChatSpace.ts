@@ -155,6 +155,10 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         }
     }
 
+    getName() {
+        return undefined;
+    }
+
 }
 
 ClassRegistry.register(ChatSpace.className, ChatSpace);

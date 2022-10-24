@@ -187,6 +187,10 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         this._node = undefined;
     }
 
+    getName() {
+        return undefined;
+    }
+
 }
 
 ClassRegistry.register(LinkDeviceOffer.className, LinkDeviceOffer);

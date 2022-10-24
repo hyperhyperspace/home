@@ -467,6 +467,10 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     private invert() {
         return new Conversation(this.getRemoteIdentity(), this.getLocalIdentity());
     }
+
+    getName() {
+        return undefined;
+    }
 }
 
 ClassRegistry.register(Conversation.className, Conversation);

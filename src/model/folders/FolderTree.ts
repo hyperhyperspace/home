@@ -283,9 +283,6 @@ class FolderTree extends HashedObject {
     }
 
     async loadAllChanges(loadBatchSize=128) {
-
-        console.log('load all changes for folder tree!')
-
         await this.doChange({what:'load-root', loadBatchSize: loadBatchSize});
     }
 
