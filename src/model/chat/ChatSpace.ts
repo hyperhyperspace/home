@@ -43,7 +43,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
     }
 
     init(): void {
-        this.conversations?.addMutationObserver(this._conversationsObserver);
+        this.conversations?.addObserver(this._conversationsObserver);
     }
 
     getClassName(): string {
@@ -131,7 +131,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
 
             conversations.dontWatchForChanges();
 
-            conversations.removeMutationObserver(this._conversationsObserver);
+            conversations.removeObserver(this._conversationsObserver);
 
             for (const conversation of conversations.values()) {
                 conversation.stopSync(ownSync);

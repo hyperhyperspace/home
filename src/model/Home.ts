@@ -139,8 +139,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
     }
     
     init(): void {
-        this.devices?.addMutationObserver(this._devicesMutationObserver);
-        this.desktop?.addMutationObserver(this._desktopMutationObserver);
+        this.devices?.addObserver(this._devicesMutationObserver);
+        this.desktop?.addObserver(this._desktopMutationObserver);
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -251,7 +251,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
             node.sync(this.profile as Profile, SyncMode.full, this._devicePeers);
             node.sync(this.contacts as Contacts, SyncMode.full, this._devicePeers)
 
-            this.contacts?.profileIsPublic?.addMutationObserver(() => {
+            this.contacts?.profileIsPublic?.addObserver(() => {
                 const profile = this.profile as Profile;
                 
                 if (this.contacts?.profileIsPublic?._value) {

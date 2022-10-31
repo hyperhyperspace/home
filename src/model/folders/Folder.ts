@@ -93,7 +93,7 @@ class Folder extends HashedObject {
     }
 
     init(): void {
-        this.addMutationObserver(this._contentsObserver);
+        this.addObserver(this._contentsObserver);
     }
 
     async validate(references: Map<string, HashedObject>): Promise<boolean> {

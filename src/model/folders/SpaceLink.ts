@@ -49,7 +49,7 @@ class SpaceLink extends HashedObject {
     }
 
     init(): void {
-        this.addMutationObserver(this._nameObserver);
+        this.addObserver(this._nameObserver);
     }
 
     async validate(references: Map<string, HashedObject>): Promise<boolean> {

@@ -218,12 +218,12 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     }
 
     init(): void {
-        this.incoming?.messages?.addMutationObserver(this._messagesObserver);
-        this.outgoing?.messages?.addMutationObserver(this._messagesObserver);
+        this.incoming?.messages?.addObserver(this._messagesObserver);
+        this.outgoing?.messages?.addObserver(this._messagesObserver);
 
-        this.outgoing?.receivedAck?.addMutationObserver(this._acksObserver);
+        this.outgoing?.receivedAck?.addObserver(this._acksObserver);
 
-        this.read?.addMutationObserver(this._readObserver);
+        this.read?.addObserver(this._readObserver);
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -318,7 +318,7 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         this.enableIncomingSync();
         this.enableOutgoingSync();
 
-        this.addMutationObserver(this._syncMutationObserver);
+        this.addObserver(this._syncMutationObserver);
 
         this.checkIncomingState();
         this.checkOutgoingState();

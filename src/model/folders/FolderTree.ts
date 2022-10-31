@@ -109,7 +109,7 @@ class FolderTree extends HashedObject {
         this._currentFolderItems.set(root.hash(), root);
         //this._allFolderItems.set(root.hash(), root);
         
-        root.addMutationObserver(this._treeObserver);
+        root.addObserver(this._treeObserver);
     }
 
     getClassName(): string {
@@ -188,7 +188,7 @@ class FolderTree extends HashedObject {
             
                 if (item instanceof Folder) {
 
-                    item.addMutationObserver(this._treeObserver);
+                    item.addObserver(this._treeObserver);
 
                     for (const nestedItem of (item.items as MutableArray<FolderItem>).contents()) {
                         await this.doChange({what: 'add', folder: item, item: nestedItem});
@@ -238,7 +238,7 @@ class FolderTree extends HashedObject {
     
                 } else if (item instanceof Folder) {
 
-                    item.removeMutationObserver(this._treeObserver);
+                    item.removeObserver(this._treeObserver);
 
                     for (const nestedItem of (folder.items as MutableArray<FolderItem>)?.contents()) {
 
