@@ -1,4 +1,5 @@
-import { ClassRegistry, ConstantPeerSource, EmptyPeerSource, HashedObject, Hashing, Identity, IdentityPeer, MeshNode, PeerGroupInfo, Resources, SpaceEntryPoint, SyncMode } from '@hyper-hyper-space/core';
+import { ClassRegistry, ConstantPeerSource, EmptyPeerSource, HashedObject, Hashing, Identity, IdentityPeer, MeshNode, MutableContentEvents, MutableReference, MutableSet, MutationEvent, MutationObserver, PeerGroupInfo, Resources, SpaceEntryPoint, SyncMode } from '@hyper-hyper-space/core';
+import { SpaceLink } from '../folders/SpaceLink';
 import { Base64MutableRef } from '../../utils/Base64MutableRef';
 import { StringMutableRef } from '../../utils/StringMutableRef';
 
@@ -23,8 +24,15 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
     about?: StringMutableRef;
 
+    published?: MutableSet<SpaceLink>;
+
+
+
     _peerGroup?: PeerGroupInfo;
     _node?: MeshNode;
+
+
+    _publishedNamesObs: MutationObserver;
 
     constructor(owner?: Identity) {
         super();
@@ -42,8 +50,28 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             this.addDerivedField('thumbnailMIMEType', new StringMutableRef({maxLength: MIMETypeMaxLength, writer: owner}));
 
             this.addDerivedField('about', new StringMutableRef({maxLength: aboutMaxLength, writer: owner}));
-            
+
+            this.addDerivedField('published', new MutableSet({writer: owner, acceptedTypes: [SpaceLink.className]}));
         }
+
+        this._publishedNamesObs = (ev: MutationEvent) => {
+            if (ev.emitter === this.published) {
+
+                if (this._node !== undefined) {
+                    if (ev.action === MutableContentEvents.AddObject) {
+                        const link = ev.data as SpaceLink;
+                        this._node?.sync(link.name as MutableReference<string>, SyncMode.single, this._peerGroup);
+                    } else if (ev.action === MutableContentEvents.RemoveObject) {
+                        const link = ev.data as SpaceLink;
+                        this._node?.stopSync(link.name as MutableReference<string>, this._peerGroup?.id);
+                    }    
+                }
+            }
+        };
+    }
+
+    init(): void {
+
     }
 
     syncIsEnabled(): boolean {
@@ -99,12 +127,24 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             
             this._node.sync(this, SyncMode.full, this._peerGroup);
 
+            this.published?.addObserver(this._publishedNamesObs);
+
+            for (const link of this.published?.values() || []) {
+                this._node?.sync(link.name as MutableReference<string>, SyncMode.single, this._peerGroup);
+            }
+
         }
     }
 
     async stopSync(): Promise<void> {
 
         if (this._node !== undefined && this._peerGroup !== undefined) {
+            this.published?.removeObserver(this._publishedNamesObs);
+
+            for (const link of this.published?.values() || []) {
+                this._node?.stopSync(link.name as MutableReference<string>, this._peerGroup?.id);
+            }
+
             this.dontWatchForChanges();
             this._node.stopBroadcast(this.owner as Identity);
             this._node.stopBroadcast(this);
@@ -116,10 +156,6 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
     getClassName(): string {
         return Profile.className;
-    }
-
-    init(): void {
-        
     }
 
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
@@ -239,6 +275,28 @@ class Profile extends HashedObject implements SpaceEntryPoint {
         }
 
         if (!this.checkDerivedField('about')) {
+            return false;
+        }
+
+        // published
+
+        if (!((this.published instanceof MutableSet))) {
+            return false;
+        }
+
+        if (!this.published.hasSingleWriter() || !(this.owner?.equals(this.published.getSingleWriter()))) {
+            return false;
+        }
+
+        if (this.published.hasAuthor()) {
+            return false;
+        }
+
+        if (!this.published.validateAcceptedTypes([SpaceLink.className])) {
+            return false;
+        }
+
+        if (!this.checkDerivedField('published')) {
             return false;
         }
 
