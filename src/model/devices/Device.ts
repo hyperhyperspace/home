@@ -7,6 +7,7 @@ class Device extends HashedObject {
     static className = 'hhs-home/v0/Device';
 
     name?: MutableReference<string>;
+    hostContactSpaces?: MutableReference<boolean>;
     publicKey?: RSAPublicKey;
 
     constructor(owner?: Identity, publicKey?: RSAPublicKey, id?: string) {
@@ -24,6 +25,10 @@ class Device extends HashedObject {
             const name = new MutableReference({writer: owner, acceptedTypes: ['string']});
             name.setAuthor(owner);
             this.addDerivedField('name', name);
+
+            const hostContactSpaces = new MutableReference({writer: owner, acceptedTypes: ['boolean']});
+            hostContactSpaces.setAuthor(owner);
+            this.addDerivedField('hostContactSpaces', hostContactSpaces);
 
             if (publicKey === undefined) {
                 throw new Error('A device public key is necessary to create a new device.');
@@ -71,7 +76,27 @@ class Device extends HashedObject {
         if (!this.checkDerivedField('name')) {
             return false;
         }
+
+        if (!(this.hostContactSpaces instanceof MutableReference)) {
+            return false;
+        }
         
+        if (!this.hostContactSpaces.validateAcceptedTypes(['boolean'])) {
+            return false;
+        }
+
+        if (!(this.getAuthor()?.equals(this.hostContactSpaces.getAuthor()))) {
+            return false;
+        }
+
+        if (!this.hostContactSpaces.hasSingleWriter() || !(this.getAuthor()?.equals(this.hostContactSpaces.getSingleWriter()))) {
+            return false;
+        }
+
+        if (!this.checkDerivedField('hostContactSpaces')) {
+            return false;
+        }
+
         if (!(this.publicKey instanceof RSAPublicKey)) {
             return false;
         }

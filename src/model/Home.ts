@@ -1,11 +1,9 @@
-import { MutationEvent, MutationObserver, LinkupManager, SyncMode, MutableArray, Space } from '@hyper-hyper-space/core';
-import { ClassRegistry, Hash, HashedObject, Hashing } from '@hyper-hyper-space/core';
+import { MutationEvent, MutationObserver, LinkupManager, SyncMode, MutableArray, Space, MutableReference } from '@hyper-hyper-space/core';
+import { ClassRegistry, HashedObject, Hashing } from '@hyper-hyper-space/core';
 import { Identity } from '@hyper-hyper-space/core';
 import { MutableSet, MutableSetEvents } from '@hyper-hyper-space/core';
 import { SpaceEntryPoint } from '@hyper-hyper-space/core';
 import { MeshNode, PeerGroupInfo } from '@hyper-hyper-space/core';
-
-import { MultiMap } from '@hyper-hyper-space/core';
 
 import { Folder } from './folders/Folder';
 import { FolderTree, FolderTreeEvents } from './folders/FolderTree';
@@ -31,10 +29,9 @@ class Home extends HashedObject implements SpaceEntryPoint {
     profile?: Profile;
     contacts?: Contacts;
 
-    _allSpaceLinks: Map<Hash, FolderItem>;
-    _allContainingFolders: MultiMap<Hash, Hash>;
     _desktopMutationObserver: MutationObserver;
     _devicesMutationObserver: MutationObserver;
+    _hostingMutationObserver: MutationObserver;
 
     _devicePeers?: PeerGroupInfo;
     _node?: MeshNode;
@@ -42,9 +39,6 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
     constructor(owner?: Identity) {
         super();
-
-        this._allSpaceLinks = new Map();
-        this._allContainingFolders = new MultiMap();
 
         this._devicesMutationObserver = (ev: MutationEvent) => {
 
@@ -105,6 +99,20 @@ class Home extends HashedObject implements SpaceEntryPoint {
             }
 
             return false;
+        };
+
+        this._hostingMutationObserver = (ev: MutationEvent) => {
+
+            if (ev.emitter === this.contacts?._hostingConfig) {
+                const conf = ev.data as MutableReference<string>;
+
+                if (ev.action === MutableSetEvents.Add) {
+                    this._node?.sync(conf, SyncMode.single, this._devicePeers);
+                } else if (ev.action === MutableSetEvents.Delete) {
+                    this._node?.stopSync(conf, this._devicePeers?.id);
+                }
+            }
+            
         };
 
         if (owner !== undefined) {
@@ -266,6 +274,14 @@ class Home extends HashedObject implements SpaceEntryPoint {
             if (this.contacts?.profileIsPublic) {
                 (this.profile as Profile).startSync({owner: true});
             }
+
+            this.contacts?.loadHostingPerProfile();
+
+            this.contacts?._hostingConfig?.addObserver(this._hostingMutationObserver);
+
+            for (const conf of this.contacts?._hostingConfig?.values() || []) {
+                node.sync(conf, SyncMode.single, this._devicePeers);
+            }
         }
 
         this._node?.sync(this.devices as MutableSet<Device>, SyncMode.single, this._devicePeers);
@@ -299,6 +315,14 @@ class Home extends HashedObject implements SpaceEntryPoint {
                 this._node?.stopSync(item, SyncMode.full);
             }
         }
+
+        this.contacts?._hostingConfig?.removeObserver(this._hostingMutationObserver);
+
+        for (const conf of this.contacts?._hostingConfig?.values() || []) {
+            this._node?.stopSync(conf, this._devicePeers?.id);
+        }
+
+        this.contacts?.unloadHostingPerProfile();
 
         this._node = undefined;
     }
