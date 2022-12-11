@@ -22,12 +22,15 @@ type FolderItem = Folder | SpaceLink;
 class Home extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs/v0/Home';
+    static version   = '0.0.5';
 
     desktop?: FolderTree;
     devices?: MutableSet<Device>
 
     profile?: Profile;
     contacts?: Contacts;
+
+    version?: string;
 
     _desktopMutationObserver: MutationObserver;
     _devicesMutationObserver: MutationObserver;
@@ -131,6 +134,8 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
             this.contacts = new Contacts(owner, this.getDerivedFieldId('contacts'));
 
+            this.version = Home.version;
+
             this.init();
         }
 
@@ -195,6 +200,10 @@ class Home extends HashedObject implements SpaceEntryPoint {
         }
 
         if (!this.getAuthor()?.equals(this.profile?.getAuthor())) {
+            return false;
+        }
+
+        if (typeof(this.version) !== 'string') {
             return false;
         }
 
@@ -447,6 +456,10 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
     getName() {
         return "Home for " + Space.getWordCodingFor(this.getAuthor() as Identity);
+    }
+
+    getVersion(): string {
+        return this.version as string;
     }
 }
 

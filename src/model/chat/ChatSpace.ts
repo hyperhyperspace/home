@@ -6,8 +6,11 @@ import { ConversationSet } from './ConversationSet';
 class ChatSpace extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs-home/v0/ChatSpace';
+    static version   = '0.0.5';
 
     conversations?: ConversationSet;
+
+    version?: string;
 
     _node?: MeshNode;
 
@@ -38,6 +41,7 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         if (owner !== undefined) {
             this.setAuthor(owner);
             this.conversations = new ConversationSet(owner);
+            this.version = ChatSpace.version;
             this.init();
         }
     }
@@ -53,6 +57,10 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
     async validate(_references: Map<string, HashedObject>): Promise<boolean> {
         
         if (this.getAuthor() === undefined) {
+            return false;
+        }
+
+        if (typeof(this.version) !== 'string') {
             return false;
         }
 
@@ -159,6 +167,9 @@ class ChatSpace extends HashedObject implements SpaceEntryPoint {
         return undefined;
     }
 
+    getVersion(): string {
+        return this.version as string;
+    }
 }
 
 ClassRegistry.register(ChatSpace.className, ChatSpace);

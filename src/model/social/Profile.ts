@@ -13,6 +13,7 @@ const aboutMaxLength = 500;
 class Profile extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs/v0/Profile';
+    static version   = '0.0.5';
 
     owner?: Identity;
 
@@ -26,7 +27,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
     published?: MutableSet<SpaceLink>;
 
-
+    version?: string;
 
     _peerGroup?: PeerGroupInfo;
     _node?: MeshNode;
@@ -52,6 +53,8 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             this.addDerivedField('about', new StringMutableRef({maxLength: aboutMaxLength, writer: owner}));
 
             this.addDerivedField('published', new MutableSet({writer: owner, acceptedTypes: [SpaceLink.className]}));
+
+            this.version = Profile.version;
         }
 
         this._publishedNamesObs = (ev: MutationEvent) => {
@@ -300,6 +303,10 @@ class Profile extends HashedObject implements SpaceEntryPoint {
             return false;
         }
 
+        if (typeof(this.version) !== 'string') {
+            return false;
+        }
+
         return true;
     }
 
@@ -313,6 +320,10 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
     getName() {
         return this.getAuthor()?.info?.name as string|undefined;
+    }
+
+    getVersion(): string {
+        return this.version as string;
     }
 
     private getDerivedId() {

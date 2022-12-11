@@ -7,6 +7,7 @@ import { MessageInbox } from './MessageInbox';
 class Conversation extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs-home/v0/Conversation';
+    static version   = '0.0.5';
 
     static log = new Logger(Conversation.className, LogLevel.TRACE);
 
@@ -14,6 +15,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
     incoming?: MessageInbox;
 
     read?: GrowOnlySet<Hash>;
+
+    version?: string;
 
     _synchronizing = false;
 
@@ -202,6 +205,8 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
             this.setDerivedField('read', new GrowOnlySet<Hash>({writers: [local].values()}));
 
+            this.version = Conversation.version;
+
             this.init();
         }
 
@@ -244,6 +249,10 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
         }
 
         if (!this.equals(new Conversation(local, remote))) {
+            return false;
+        }
+
+        if (typeof(this.version) !== 'string') {
             return false;
         }
         
@@ -470,6 +479,10 @@ class Conversation extends HashedObject implements SpaceEntryPoint {
 
     getName() {
         return undefined;
+    }
+
+    getVersion(): string {
+        return this.version as string;
     }
 }
 

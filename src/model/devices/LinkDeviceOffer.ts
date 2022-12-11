@@ -7,11 +7,14 @@ type LinkDeviceReply = { info: any, publicKey: string, privateKey: string, devic
 class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs-home/v0/LinkDeviceOffer';
+    static version   = '0.0.5';
 
     reply?: MutableReference<string>;
     replyReceivingStatus?: MutableReference<'error'|'success'>;
 
     newDevice?: MutableReference<Device>;
+
+    version?: string;
 
     _secret?: string;
 
@@ -41,6 +44,8 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
             this._secret = keygen.derive(secretHex, id, 10000);
 
             this._discoveryConstant = new HashedLiteral(Hashing.forValue(id));
+
+            this.version = LinkDeviceOffer.version;
         }
     }
 
@@ -129,7 +134,8 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         return this.hasId() && 
                this.reply instanceof MutableReference && this.checkDerivedField('reply') &&
                this.replyReceivingStatus instanceof MutableReference && this.checkDerivedField('replyReceivingStatus') &&
-               this.newDevice instanceof MutableReference && this.checkDerivedField('newDevice');
+               this.newDevice instanceof MutableReference && this.checkDerivedField('newDevice') &&
+               typeof(this.version) === 'string';
     }
 
     async startSync(broadcast=false): Promise<void> {
@@ -191,6 +197,9 @@ class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
         return undefined;
     }
 
+    getVersion(): string {
+        return this.version as string;
+    }
 }
 
 ClassRegistry.register(LinkDeviceOffer.className, LinkDeviceOffer);
