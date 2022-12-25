@@ -62,6 +62,7 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
                 if (this._node !== undefined) {
                     if (ev.action === MutableContentEvents.AddObject) {
+                        console.log('STARTING SYNC OF LINK NAME FROM OBS')
                         const link = ev.data as SpaceLink;
                         this._node?.sync(link.name as MutableReference<string>, SyncMode.single, this._peerGroup);
                     } else if (ev.action === MutableContentEvents.RemoveObject) {
@@ -96,12 +97,12 @@ class Profile extends HashedObject implements SpaceEntryPoint {
 
             if (config?.owner) {
 
-                // TODO: Create a new broadcast mode where the broadcaster has to proove possesing an identity
+                // TODO: Create a new broadcast mode where the broadcaster has to prove possesing an identity
                 //       that's being used in the broadcast. This would enable a semi-private object discovery,
                 //       where only the linkup server and the broadcast can know about the query (since no 3rd
                 //       party could broadcast -and receive queries- without authenticating).
 
-                // this._node.authorBroadcast(this.getAuthor() as Identity);
+                // this._node.authenticatedBroadcast(this.getAuthor() as Identity);
 
                 this._node.broadcast(this.owner as Identity);
                 this._node.broadcast(this);
