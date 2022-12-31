@@ -22,7 +22,7 @@ type FolderItem = Folder | SpaceLink;
 class Home extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs/v0/Home';
-    static version   = '0.0.5';
+    static version   = '0.0.6';
 
     desktop?: FolderTree;
     devices?: MutableSet<Device>

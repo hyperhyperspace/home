@@ -7,7 +7,7 @@ type LinkDeviceReply = { info: any, publicKey: string, privateKey: string, devic
 class LinkDeviceOffer extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs-home/v0/LinkDeviceOffer';
-    static version   = '0.0.5';
+    static version   = '0.0.6';
 
     reply?: MutableReference<string>;
     replyReceivingStatus?: MutableReference<'error'|'success'>;

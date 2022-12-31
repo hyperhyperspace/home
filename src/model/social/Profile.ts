@@ -13,7 +13,7 @@ const aboutMaxLength = 500;
 class Profile extends HashedObject implements SpaceEntryPoint {
 
     static className = 'hhs/v0/Profile';
-    static version   = '0.0.5';
+    static version   = '0.0.6';
 
     owner?: Identity;
 
