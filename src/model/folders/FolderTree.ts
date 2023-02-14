@@ -106,7 +106,7 @@ class FolderTree extends HashedObject {
 
         const root = this.root as Folder;
 
-        this._currentFolderItems.set(root.hash(), root);
+        this._currentFolderItems.set(root.getLastHash(), root);
         //this._allFolderItems.set(root.hash(), root);
         
         root.addObserver(this._treeObserver);
@@ -143,7 +143,7 @@ class FolderTree extends HashedObject {
 
     private async loadRoot() {
 
-        const rootHash = this.root?.hash() as Hash;
+        const rootHash = this.root?.getLastHash() as Hash;
         this._loadingFolders.add(rootHash);
         try {
             await this.root?.loadAllChanges();

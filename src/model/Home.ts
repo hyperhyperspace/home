@@ -45,7 +45,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         this._devicesMutationObserver = (ev: MutationEvent) => {
 
-            if (ev.emitter.equals(this.devices)) {
+            if (ev.emitter.getLastHash() === this.devices?.getLastHash()) {
 
                 const device = ev.data as Device;
 
@@ -70,7 +70,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         this._desktopMutationObserver = (ev: MutationEvent) => {
 
-            if (ev.emitter.equals(this.desktop)) {
+            if (ev.emitter.getLastHash() === this.desktop?.getLastHash()) {
 
                 const item = ev.data as FolderItem;
 
@@ -106,7 +106,7 @@ class Home extends HashedObject implements SpaceEntryPoint {
 
         this._hostingMutationObserver = (ev: MutationEvent) => {
 
-            if (ev.emitter === this.contacts?._hostingConfig) {
+            if (ev.emitter.getLastHash() === this.contacts?._hostingConfig?.getLastHash()) {
                 const conf = ev.data as MutableReference<string>;
 
                 if (ev.action === MutableSetEvents.Add) {
